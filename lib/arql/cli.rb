@@ -78,6 +78,18 @@ module Arql
             @options.code = code
           end
 
+          opts.on('-s', '--show-sql', 'Show SQL on STDOUT') do
+            @options.show_sql = true
+          end
+
+          opts.on('-wOUTOUT', '--write-sql=OUTPUT', 'Write SQL to OUTPUT file') do |file|
+            @options.write_sql = file
+          end
+
+          opts.on('-aOUTPUT', '--append-sql=OUTPUT', 'Append SQL to OUTPUT file') do |file|
+            @options.append_sql = file
+          end
+
           opts.on('-h', '--help', 'Prints this help') do
             puts opts
             exit

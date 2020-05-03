@@ -6,8 +6,8 @@ Gem::Specification.new do |spec|
   spec.authors       = ["Liu Xiang"]
   spec.email         = ["liuxiang921@gmail.com"]
 
-  spec.summary       = %{Rails ActiveRecord is the best SQL query editor.}
-  spec.description   = %{Rails ActiveRecord is the best SQL query editor.}
+  spec.summary       = %{Rails ActiveRecord + Pry is the best SQL query editor}
+  spec.description   = %{Use ActiveRecord and Pry as your favorite SQL query editor.}
   spec.homepage      = "https://github.com/lululau/arql"
   spec.license       = "MIT"
   spec.required_ruby_version = Gem::Requirement.new(">= 2.3.0")

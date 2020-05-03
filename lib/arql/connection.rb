@@ -1,5 +1,3 @@
-require 'active_record'
-
 module Arql
   class Connection
     class << self
