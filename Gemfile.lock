@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    arql (0.1.1)
+    arql (0.1.2)
       activerecord (~> 6.0.0)
       activesupport (~> 6.0.0)
       mysql2 (~> 0.5.3)
