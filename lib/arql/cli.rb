@@ -10,9 +10,9 @@ module Arql
       end
 
       def parse_options!
-        @options = OpenStruct.new(db_adapter: 'mysql2',
-                                  db_encoding: 'UFF-8',
-                                  db_pool: 5,
+        @options = OpenStruct.new(adapter: 'mysql2',
+                                  encoding: 'utf8',
+                                  pool: 5,
                                   config_file: default_config_file,
                                   initializer: default_initializer)
 
@@ -43,35 +43,35 @@ module Arql
           end
 
           opts.on('-ADB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify DB Adapter, default is mysql2') do |db_adapter|
-            @options.db_adapter = db_adapter
+            @options.dapter = db_adapter
           end
 
           opts.on('-HDB_HOST', '--db-host=DB_HOST', 'Specify DB host, if specified -E option will be ignored') do |db_host|
-            @options.db_host = db_host
+            @options.host = db_host
           end
 
           opts.on('-PDB_PORT', '--db-port=DB_PORT', 'Specify DB port, if specified -E option will be ignored') do |db_port|
-            @options.db_port = db_port.to_i
+            @options.port = db_port.to_i
           end
 
           opts.on('-DDB_NAME', '--db-name=DB_NAME', 'Specify database name, if specified -E option will be ignored') do |db_name|
-            @options.db_name = db_name
+            @options.database = db_name
           end
 
           opts.on('-UDB_USER', '--db-user=DB_USER', 'Specify database user, if specified -E option will be ignored') do |db_user|
-            @options.db_user = db_user
+            @options.username = db_user
           end
 
           opts.on('-pDB_PASSWORD', '--db-password=DB_PASSWORD', 'Specify database password, if specified -E option will be ignored') do |db_password|
-            @options.db_password = db_password
+            @options.password = db_password
           end
 
           opts.on('-n', '--db-encoding=DB_ENCODING', 'Specify database encoding, default is UTF-8') do |db_encoding|
-            @options.db_encoding = db_encoding
+            @options.encoding = db_encoding
           end
 
           opts.on('-o', '--db-pool=DB_POOL', 'Specify database pool size, default is 5') do |db_pool|
-            @options.db_pool = db_pool
+            @options.pool = db_pool
           end
 
           opts.on('-eCODE', '--eval=CODE', 'evaluate CODE') do |code|

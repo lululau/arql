@@ -26,6 +26,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'mysql2', '~> 0.5.3'
   spec.add_dependency 'activerecord', '~> 6.0.0'
   spec.add_dependency 'activesupport', '~> 6.0.0'
+  spec.add_dependency 'net-ssh-gateway', '~> 2.0.0'
   spec.add_dependency 'pry', '~> 0.13.1'
   spec.add_dependency 'pry-byebug', '~> 3.9.0'
 end

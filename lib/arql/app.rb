@@ -1,3 +1,5 @@
+require 'net/ssh/gateway'
+
 module Arql
   class App
     def initialize(options)
@@ -7,38 +9,46 @@ module Arql
     end
 
     def connect_options
-      if use_db_cmd_options?
-        {
-          adapter: @options.db_adapter,
-          host: @options.db_host,
-          username: @options.db_user,
-          password: @options.db_password || '',
-          database: @options.db_name,
-          encoding: @options.db_encoding,
-          pool: @options.db_pool,
-          port: @options.db_port
-        }
-      else
-        db_config
+      connect_conf = effective_config.slice(:adapter, :host, :username,
+                             :password, :database, :encoding,
+                             :pool, :port)
+      if effective_config[:ssh].present?
+        connect_conf.merge!(start_ssh_proxy!)
       end
+
+      connect_conf
+    end
+
+    def start_ssh_proxy!
+      ssh_config = effective_config[:ssh]
+      @ssh_gateway = Net::SSH::Gateway.new(ssh_config[:host], ssh_config[:user])
+      @local_ssh_proxy_port = @ssh_gateway.open(effective_config[:host], effective_config[:port], ssh_config[:local_port])
+      {
+        host: '127.0.0.1',
+        port: @local_ssh_proxy_port
+      }
     end
 
     def config
       @config ||= YAML.load(IO.read(@options.config_file)).with_indifferent_access
     end
 
-    def db_config
-      config[:db][@options.env]
+    def selected_config
+      config[@options.env]
+    end
+
+    def effective_config
+      @effective_config ||= selected_config.merge(@options.to_h)
     end
 
     def run!
       show_sql if should_show_sql?
       write_sql if should_write_sql?
       append_sql if should_append_sql?
-      if @options.code.present?
-        eval(@options.code)
-      elsif @options.args.present?
-        @options.args.each { |rb| load(rb) }
+      if effective_config[:code].present?
+        eval(effective_config[:code])
+      elsif effective_config[:args].present?
+        effective_config[:args].each { |rb| load(rb) }
       else
         run_repl!
       end
@@ -48,20 +58,16 @@ module Arql
       Repl.new
     end
 
-    def use_db_cmd_options?
-      @options.db_host.present?
-    end
-
     def should_show_sql?
-      @options.show_sql || db_config[:show_sql]
+      effective_config[:show_sql]
     end
 
     def should_write_sql?
-      @options.write_sql || db_config[:write_sql]
+      effective_config[:write_sql]
     end
 
     def should_append_sql?
-      @options.append_sql || db_config[:append_sql]
+      effective_config[:append_sql]
     end
 
     def show_sql
@@ -71,14 +77,14 @@ module Arql
     end
 
     def write_sql
-      write_sql_file = @options.write_sql || db_config[:write_sql]
+      write_sql_file = effective_config[:write_sql]
       @log_io ||= MultiIO.new
       ActiveRecord::Base.logger = Logger.new(@log_io)
       @log_io << File.new(write_sql_file, 'w')
     end
 
     def append_sql
-      write_sql_file = @options.append_sql || db_config[:append_sql]
+      write_sql_file = effective_config[:append_sql]
       @log_io ||= MultiIO.new
       ActiveRecord::Base.logger = Logger.new(@log_io)
       @log_io << File.new(write_sql_file, 'a')
