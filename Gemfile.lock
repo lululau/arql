@@ -10,6 +10,7 @@ PATH
       pry-byebug (~> 3.9.0)
       pry-doc (~> 1.1.0)
       rainbow (~> 3.0.0)
+      terminal-table (~> 1.8.0)
 
 GEM
   remote: https://rubygems.org/
@@ -47,9 +48,12 @@ GEM
       yard (~> 0.9.11)
     rainbow (3.0.0)
     rake (12.3.3)
+    terminal-table (1.8.0)
+      unicode-display_width (~> 1.1, >= 1.1.1)
     thread_safe (0.3.6)
     tzinfo (1.2.7)
       thread_safe (~> 0.1)
+    unicode-display_width (1.7.0)
     yard (0.9.25)
     zeitwerk (2.3.0)
 

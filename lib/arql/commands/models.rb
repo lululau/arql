@@ -1,15 +1,22 @@
+require 'terminal-table'
+
 module Arql::Commands
   module Models
     class << self
       def models
-        "\nTables:\n" + Arql::Definition.models.map do |definition|
-          "    %s" % definition[:table]
-        end.join("\n")
+        Terminal::Table.new do |t|
+          t << ['Table Name', 'Model Class', 'Abbr']
+          t << :separator
+          Arql::Definition.models.each do |definition|
+            t << [definition[:table], definition[:model].name, definition[:abbr] || '']
+          end
+        end
       end
 
     end
 
     Pry.commands.block_command 'models' do
+      puts
       puts Models::models
     end
 

@@ -23,7 +23,7 @@ module Arql
                   const_name.gsub(/[a-z]*/, '').tap do |abbr|
                     unless Object.const_defined?(abbr)
                       Object.const_set abbr, const
-                      abbr_const = Object.const_get(abbr, const)
+                      abbr_const = abbr
                     end
 
                     @@models << {
