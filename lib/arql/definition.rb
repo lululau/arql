@@ -1,6 +1,13 @@
 module Arql
   class Definition
+    class << self
+      def models
+        @@models ||= []
+      end
+    end
+
     def initialize
+      @@models = []
       ActiveRecord::Base.connection.tap do |conn|
         conn.tables.each do |table_name|
           conn.primary_key(table_name).tap do |pkey|
@@ -14,7 +21,16 @@ module Arql
               end.tap do |clazz|
                 Object.const_set(const_name, clazz).tap do |const|
                   const_name.gsub(/[a-z]*/, '').tap do |abbr|
-                    Object.const_set abbr, const unless Object.const_defined?(abbr)
+                    unless Object.const_defined?(abbr)
+                      Object.const_set abbr, const
+                      abbr_const = Object.const_get(abbr, const)
+                    end
+
+                    @@models << {
+                      model: const,
+                      abbr: abbr_const,
+                      table: table_name
+                    }
                   end
                 end
               end

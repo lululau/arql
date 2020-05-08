@@ -1,5 +1,6 @@
 require 'pry'
 require 'pry-byebug'
+require 'arql/commands'
 
 module Arql
   class Repl
@@ -29,7 +30,7 @@ module Arql
          else
            nest_level_prompt = "(#{obj}:#{nest_level})"
          end
-         "ARQL#{nest_level_prompt} -> "
+         "ARQL#{nest_level_prompt} ❯ "
        end]
     end
   end
