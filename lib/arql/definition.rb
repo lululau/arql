@@ -18,6 +18,7 @@ module Arql
                 self.primary_key = pkey
                 self.table_name = table_name
                 self.inheritance_column = nil
+                self.default_timezone = :local
               end.tap do |clazz|
                 Object.const_set(const_name, clazz).tap do |const|
                   const_name.gsub(/[a-z]*/, '').tap do |abbr|
