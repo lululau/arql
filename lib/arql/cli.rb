@@ -34,7 +34,7 @@ module Arql
             @options.initializer = initializer
           end
 
-          opts.on('-EENVIRON', '--env=ENVIRON', 'Specify config environment.') do |env|
+          opts.on('-eENVIRON', '--env=ENVIRON', 'Specify config environment.') do |env|
             @options.env = env
           end
 
@@ -42,27 +42,27 @@ module Arql
             @options.config_file = config_file
           end
 
-          opts.on('-ADB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify DB Adapter, default is mysql2') do |db_adapter|
+          opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify DB Adapter, default is mysql2') do |db_adapter|
             @options.dapter = db_adapter
           end
 
-          opts.on('-HDB_HOST', '--db-host=DB_HOST', 'Specify DB host, if specified -E option will be ignored') do |db_host|
+          opts.on('-hDB_HOST', '--db-host=DB_HOST', 'Specify DB host, if specified -E option will be ignored') do |db_host|
             @options.host = db_host
           end
 
-          opts.on('-PDB_PORT', '--db-port=DB_PORT', 'Specify DB port, if specified -E option will be ignored') do |db_port|
+          opts.on('-pDB_PORT', '--db-port=DB_PORT', 'Specify DB port, if specified -E option will be ignored') do |db_port|
             @options.port = db_port.to_i
           end
 
-          opts.on('-DDB_NAME', '--db-name=DB_NAME', 'Specify database name, if specified -E option will be ignored') do |db_name|
+          opts.on('-dDB_NAME', '--db-name=DB_NAME', 'Specify database name, if specified -E option will be ignored') do |db_name|
             @options.database = db_name
           end
 
-          opts.on('-UDB_USER', '--db-user=DB_USER', 'Specify database user, if specified -E option will be ignored') do |db_user|
+          opts.on('-uDB_USER', '--db-user=DB_USER', 'Specify database user, if specified -E option will be ignored') do |db_user|
             @options.username = db_user
           end
 
-          opts.on('-pDB_PASSWORD', '--db-password=DB_PASSWORD', 'Specify database password, if specified -E option will be ignored') do |db_password|
+          opts.on('-PDB_PASSWORD', '--db-password=DB_PASSWORD', 'Specify database password, if specified -E option will be ignored') do |db_password|
             @options.password = db_password
           end
 
@@ -74,23 +74,23 @@ module Arql
             @options.pool = db_pool
           end
 
-          opts.on('-eCODE', '--eval=CODE', 'evaluate CODE') do |code|
+          opts.on('-ECODE', '--eval=CODE', 'evaluate CODE') do |code|
             @options.code = code
           end
 
-          opts.on('-s', '--show-sql', 'Show SQL on STDOUT') do
+          opts.on('-S', '--show-sql', 'Show SQL on STDOUT') do
             @options.show_sql = true
           end
 
-          opts.on('-wOUTOUT', '--write-sql=OUTPUT', 'Write SQL to OUTPUT file') do |file|
+          opts.on('-WOUTOUT', '--write-sql=OUTPUT', 'Write SQL to OUTPUT file') do |file|
             @options.write_sql = file
           end
 
-          opts.on('-aOUTPUT', '--append-sql=OUTPUT', 'Append SQL to OUTPUT file') do |file|
+          opts.on('-AOUTPUT', '--append-sql=OUTPUT', 'Append SQL to OUTPUT file') do |file|
             @options.append_sql = file
           end
 
-          opts.on('-h', '--help', 'Prints this help') do
+          opts.on('', '--help', 'Prints this help') do
             puts opts
             exit
           end
