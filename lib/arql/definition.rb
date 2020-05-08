@@ -1,4 +1,9 @@
 module Arql
+  module Extension
+    def to_sql
+      self.class.connection.to_sql self.class.arel_table.create_insert.insert(self.class.send :_substitute_values, attributes_with_values(attribute_names))
+    end
+  end
   class Definition
     class << self
       def models
@@ -15,6 +20,7 @@ module Arql
               const_name = 'Modul' if const_name == 'Module'
               const_name = 'Clazz' if const_name == 'Class'
               Class.new(ActiveRecord::Base) do
+                include Arql::Extension
                 self.primary_key = pkey
                 self.table_name = table_name
                 self.inheritance_column = nil
