@@ -14,7 +14,8 @@ module Arql
                                   encoding: 'utf8',
                                   pool: 5,
                                   config_file: default_config_file,
-                                  initializer: default_initializer)
+                                  initializer: default_initializer,
+                                  ssh: {})
 
 
         OptionParser.new do |opts|
@@ -42,27 +43,27 @@ module Arql
             @options.config_file = config_file
           end
 
-          opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify DB Adapter, default is mysql2') do |db_adapter|
+          opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify database Adapter, default is mysql2') do |db_adapter|
             @options.dapter = db_adapter
           end
 
-          opts.on('-hDB_HOST', '--db-host=DB_HOST', 'Specify DB host, if specified -E option will be ignored') do |db_host|
+          opts.on('-hDB_HOST', '--db-host=DB_HOST', 'Specify database host') do |db_host|
             @options.host = db_host
           end
 
-          opts.on('-pDB_PORT', '--db-port=DB_PORT', 'Specify DB port, if specified -E option will be ignored') do |db_port|
+          opts.on('-pDB_PORT', '--db-port=DB_PORT', 'Specify database port') do |db_port|
             @options.port = db_port.to_i
           end
 
-          opts.on('-dDB_NAME', '--db-name=DB_NAME', 'Specify database name, if specified -E option will be ignored') do |db_name|
+          opts.on('-dDB_NAME', '--db-name=DB_NAME', 'Specify database name') do |db_name|
             @options.database = db_name
           end
 
-          opts.on('-uDB_USER', '--db-user=DB_USER', 'Specify database user, if specified -E option will be ignored') do |db_user|
+          opts.on('-uDB_USER', '--db-user=DB_USER', 'Specify database user') do |db_user|
             @options.username = db_user
           end
 
-          opts.on('-PDB_PASSWORD', '--db-password=DB_PASSWORD', 'Specify database password, if specified -E option will be ignored') do |db_password|
+          opts.on('-PDB_PASSWORD', '--db-password=DB_PASSWORD', 'Specify database password') do |db_password|
             @options.password = db_password
           end
 
@@ -74,6 +75,26 @@ module Arql
             @options.pool = db_pool
           end
 
+          opts.on('-HSSH_HOST', '--ssh-host=SSH_HOST', 'Specify SSH host') do |ssh_host|
+            @options.ssh[:host] = ssh_host
+          end
+
+          opts.on('-OSSH_PORT', '--ssh-port=SSH_PORT', 'Specify SSH port') do |ssh_port|
+            @options.ssh[:port] = ssh_port.to_i
+          end
+
+          opts.on('-USSH_USER', '--ssh-user=SSH_USER', 'Specify SSH user') do |ssh_user|
+            @options.ssh[:user] = ssh_user
+          end
+
+          opts.on('-WSSH_PASSWORD', '--ssh-password=SSH_PASSWORD', 'Specify SSH password') do |ssh_password|
+            @options.ssh[:password] = ssh_password
+          end
+
+          opts.on('-LSSH_LOCAL_PORT', '--ssh-local-port=SSH_LOCAL_PORT', 'Specify local SSH proxy port') do |ssh_port|
+            @options.ssh[:local_port] = local_port.to_i
+          end
+
           opts.on('-ECODE', '--eval=CODE', 'evaluate CODE') do |code|
             @options.code = code
           end
@@ -82,7 +103,7 @@ module Arql
             @options.show_sql = true
           end
 
-          opts.on('-WOUTOUT', '--write-sql=OUTPUT', 'Write SQL to OUTPUT file') do |file|
+          opts.on('-wOUTOUT', '--write-sql=OUTPUT', 'Write SQL to OUTPUT file') do |file|
             @options.write_sql = file
           end
 
