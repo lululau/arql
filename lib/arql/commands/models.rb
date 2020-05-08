@@ -13,8 +13,8 @@ module Arql::Commands
       puts Models::models
     end
 
-    Pry.commands.alias_command 'tables', 'models'
-    Pry.commands.alias_command 't', 'models'
     Pry.commands.alias_command 'm', 'models'
+    Pry.commands.alias_command 'l', 'models'
+    Pry.commands.alias_command 'tables', 'models'
   end
 end

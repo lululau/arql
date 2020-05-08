@@ -1,6 +1,7 @@
 require 'pry'
 require 'pry-byebug'
 require 'arql/commands'
+require 'rainbow'
 
 module Arql
   class Repl
@@ -30,7 +31,7 @@ module Arql
          else
            nest_level_prompt = "(#{obj}:#{nest_level})"
          end
-         "ARQL#{nest_level_prompt} ❯ "
+         "%s#{nest_level_prompt} %s " % [Rainbow('ARQL').red, Rainbow('❯').green]
        end]
     end
   end
