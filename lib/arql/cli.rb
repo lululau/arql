@@ -39,10 +39,6 @@ module Arql
             @options.env = env
           end
 
-          opts.on('-jJAVA_CONFIG', '--java-conf=JAVA_CONFIG', 'Use JDBC config in JAVA_CONFIG file, if directory sepcified, first *.properties/*.yml file found in the directory will be used') do |config_file|
-            @options.config_file = config_file
-          end
-
           opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify database Adapter, default is mysql2') do |db_adapter|
             @options.dapter = db_adapter
           end
