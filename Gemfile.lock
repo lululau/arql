@@ -2,12 +2,13 @@ PATH
   remote: .
   specs:
     arql (0.1.2)
-      activerecord (~> 6.0.0)
-      activesupport (~> 6.0.0)
+      activerecord (~> 6.0.3)
+      activesupport (~> 6.0.3)
       mysql2 (~> 0.5.3)
       net-ssh-gateway (~> 2.0.0)
       pry (~> 0.13.1)
       pry-byebug (~> 3.9.0)
+      pry-doc (~> 1.1.0)
 
 GEM
   remote: https://rubygems.org/
@@ -40,10 +41,14 @@ GEM
     pry-byebug (3.9.0)
       byebug (~> 11.0)
       pry (~> 0.13.0)
+    pry-doc (1.1.0)
+      pry (~> 0.11)
+      yard (~> 0.9.11)
     rake (12.3.3)
     thread_safe (0.3.6)
     tzinfo (1.2.7)
       thread_safe (~> 0.1)
+    yard (0.9.25)
     zeitwerk (2.3.0)
 
 PLATFORMS
