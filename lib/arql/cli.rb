@@ -67,7 +67,7 @@ module Arql
             @options.password = db_password
           end
 
-          opts.on('-n', '--db-encoding=DB_ENCODING', 'Specify database encoding, default is UTF-8') do |db_encoding|
+          opts.on('-n', '--db-encoding=DB_ENCODING', 'Specify database encoding, default is utf8') do |db_encoding|
             @options.encoding = db_encoding
           end
 
@@ -91,7 +91,7 @@ module Arql
             @options.ssh[:password] = ssh_password
           end
 
-          opts.on('-LSSH_LOCAL_PORT', '--ssh-local-port=SSH_LOCAL_PORT', 'Specify local SSH proxy port') do |ssh_port|
+          opts.on('-LSSH_LOCAL_PORT', '--ssh-local-port=SSH_LOCAL_PORT', 'Specify local SSH proxy port') do |local_port|
             @options.ssh[:local_port] = local_port.to_i
           end
 
