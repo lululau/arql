@@ -38,7 +38,7 @@ module Arql
     end
 
     def effective_config
-      @effective_config ||= selected_config.merge(@options.to_h)
+      @effective_config ||= selected_config.deep_merge(@options.to_h)
     end
 
     def run!
