@@ -8,7 +8,7 @@ module Arql::Commands
             Host:      #{Arql::App.config[:host]}
             Port:      #{Arql::App.config[:port]}
             Username:  #{Arql::App.config[:username]}
-            Password:  #{Arql::App.config[:password].gsub(/./, '*')}
+            Password:  #{(Arql::App.config[:password] || '').gsub(/./, '*')}
             Database:  #{Arql::App.config[:database]}
             Adapter:   #{Arql::App.config[:adapter]}
             Encoding:  #{Arql::App.config[:encoding]}
@@ -23,7 +23,7 @@ module Arql::Commands
             Host:       #{Arql::App.config[:ssh][:host]}
             Port:       #{Arql::App.config[:ssh][:port]}
             Username:   #{Arql::App.config[:ssh][:user]}
-            Password:   #{Arql::App.config[:ssh][:password].gsub(/./, '*')}
+            Password:   #{(Arql::App.config[:ssh][:password] || '').gsub(/./, '*')}
             Local Port: #{Arql::App.local_ssh_proxy_port}
         EOF
       end
