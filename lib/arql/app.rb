@@ -21,7 +21,7 @@ module Arql
 
     def start_ssh_proxy!
       ssh_config = effective_config[:ssh]
-      @ssh_gateway = Net::SSH::Gateway.new(ssh_config[:host], ssh_config[:user])
+      @ssh_gateway = Net::SSH::Gateway.new(ssh_config[:host], ssh_config[:user], ssh_config.slice(:port, :password).symbolize_keys)
       @local_ssh_proxy_port = @ssh_gateway.open(effective_config[:host], effective_config[:port], ssh_config[:local_port])
       {
         host: '127.0.0.1',
