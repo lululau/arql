@@ -34,7 +34,7 @@ module Arql
       end
     end
 
-    def initialize
+    def initialize(options)
       @@models = []
       ActiveRecord::Base.connection.tap do |conn|
         conn.tables.each do |table_name|
@@ -48,6 +48,17 @@ module Arql
                 self.table_name = table_name
                 self.inheritance_column = nil
                 self.default_timezone = :local
+                if options[:created_at].present?
+                  define_singleton_method :timestamp_attributes_for_create do
+                    options[:created_at]
+                  end
+                end
+
+                if options[:updated_at].present?
+                  define_singleton_method :timestamp_attributes_for_update do
+                    options[:updated_at]
+                  end
+                end
               end.tap do |clazz|
                 Object.const_set(const_name, clazz).tap do |const|
                   const_name.gsub(/[a-z]*/, '').tap do |abbr|

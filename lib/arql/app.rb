@@ -16,7 +16,7 @@ module Arql
     def initialize(options)
       @options = options
       Connection.open(connect_options)
-      @definition = Definition.new
+      @definition = Definition.new(effective_config)
     end
 
     def connect_options
