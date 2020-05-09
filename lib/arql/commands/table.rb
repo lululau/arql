@@ -3,6 +3,15 @@ require 'terminal-table'
 module Arql::Commands
   module Table
     class << self
+      def get_table_name(name)
+        return name if name =~ /^[a-z]/
+        if Object.const_defined?(name)
+          klass = Object.const_get(name)
+          return klass.table_name if klass < ActiveRecord::Base
+        end
+        name
+      end
+
       def table_info(table_name)
         Terminal::Table.new do |t|
           t << ['PK', 'Name', 'SQL Type', 'Ruby Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
@@ -21,11 +30,12 @@ module Arql::Commands
           end
         end
       end
-
     end
 
-    Pry.commands.block_command 'table' do |table_name|
+    Pry.commands.block_command 'table' do |name|
+      table_name = Table::get_table_name(name)
       puts
+      puts "Table: #{table_name}"
       puts Table::table_info(table_name)
     end
 

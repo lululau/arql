@@ -11,6 +11,12 @@ module Arql
     end
 
     class_methods do
+      def t
+        table_name = Commands::Table::get_table_name(name)
+        puts
+        puts "Table: #{table_name}"
+        puts Commands::Table::table_info(table_name)
+      end
       def to_insert_sql(records, batch_size=1)
         to_sql(records, :skip, batch_size)
       end
