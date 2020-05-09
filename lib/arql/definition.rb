@@ -2,6 +2,16 @@ module Arql
   module Extension
     extend ActiveSupport::Concern
 
+    def t
+      puts Terminal::Table.new { |t|
+        t << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
+        t << :separator
+        self.class.connection.columns(self.class.table_name).each do |column|
+          t << [column.name, read_attribute(column.name), column.sql_type, column.comment || '']
+        end
+      }
+    end
+
     def to_insert_sql
       self.class.to_insert_sql([self])
     end

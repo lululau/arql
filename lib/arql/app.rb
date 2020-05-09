@@ -14,6 +14,10 @@ module Arql
     end
 
     def initialize(options)
+      require 'active_support/all'
+      require 'active_record'
+      require "arql/connection"
+      require "arql/definition"
       @options = options
       Connection.open(connect_options)
       @definition = Definition.new(effective_config)
