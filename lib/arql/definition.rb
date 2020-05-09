@@ -2,19 +2,26 @@ module Arql
   module Extension
     extend ActiveSupport::Concern
 
-    def to_sql
-      self.class.to_sql([self])
+    def to_insert_sql
+      self.class.to_insert_sql([self])
+    end
+
+    def to_upsert_sql
+      self.class.to_upsert_sql([self])
     end
 
     class_methods do
-      def to_sql(records, batch_size=1)
+      def to_insert_sql(records, batch_size=1)
+        to_sql(records, :skip, batch_size)
+      end
+
+      def to_upsert_sql(records, batch_size=1)
+        to_sql(records, :update, batch_size)
+      end
+
+      def to_sql(records, on_duplicate, batch_size)
         records.in_groups_of(batch_size, false).map do |group|
-          if group.size == 1
-            record = group.first
-            connection.to_sql(arel_table.create_insert.insert(_substitute_values(record.send :attributes_with_values, record.attribute_names))) + ';'
-          else
-            ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: :skip).send(:to_sql) + ';'
-          end
+        ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: on_duplicate).send(:to_sql) + ';'
         end.join("\n")
       end
     end
