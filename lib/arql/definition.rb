@@ -1,9 +1,25 @@
 module Arql
   module Extension
+    extend ActiveSupport::Concern
+
     def to_sql
-      self.class.connection.to_sql self.class.arel_table.create_insert.insert(self.class.send :_substitute_values, attributes_with_values(attribute_names))
+      self.class.to_sql([self])
+    end
+
+    class_methods do
+      def to_sql(records, batch_size=1)
+        records.in_groups_of(batch_size, false).map do |group|
+          if group.size == 1
+            record = group.first
+            connection.to_sql(arel_table.create_insert.insert(_substitute_values(record.send :attributes_with_values, record.attribute_names))) + ';'
+          else
+            ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: :skip).send(:to_sql) + ';'
+          end
+        end.join("\n")
+      end
     end
   end
+
   class Definition
     class << self
       def models
