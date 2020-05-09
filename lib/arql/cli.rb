@@ -122,9 +122,9 @@ module Arql
         return conf if File.file?(conf)
         conf = File.expand_path('~/.arql.yaml')
         return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql/init.yml')
+        conf = File.expand_path('~/.arql.d/init.yml')
         return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql/init.yaml')
+        conf = File.expand_path('~/.arql.d/init.yaml')
         return conf if File.file?(conf)
       end
 
@@ -133,9 +133,9 @@ module Arql
         return conf if File.file?(conf)
         conf = File.expand_path('~/.arql.yaml')
         return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql/init.yml')
+        conf = File.expand_path('~/.arql.d/init.yml')
         return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql/init.yaml')
+        conf = File.expand_path('~/.arql.d/init.yaml')
         return conf if File.file?(conf)
       end
     end
