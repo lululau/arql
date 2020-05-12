@@ -50,6 +50,6 @@ end
 
 module Kernel
   def table(name)
-    Table::table_info(Table::get_table_name(name))
+    Arql::Commands::Table::table_info(Arql::Commands::Table::get_table_name(name))
   end
 end
