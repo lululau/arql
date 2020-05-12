@@ -14,13 +14,26 @@ class Array
   end
 
   def v
-    raise 'Empty array' unless present?
-    raise 'All elements must be instances of the same ActiveRecord model class' unless map(&:class).uniq.size == 1 && first.is_a?(ActiveRecord::Base)
+    return self unless present?
     t = []
-    t << first.attribute_names
-    t << nil
-    each do |e|
-      t << e.attributes.values_at(*first.attribute_names).map(&:as_json)
+    if map(&:class).uniq.size == 1
+      if first.is_a?(ActiveRecord::Base)
+        t << first.attribute_names
+        t << nil
+        each do |e|
+          t << e.attributes.values_at(*first.attribute_names).map(&:as_json)
+        end
+      elsif first.is_a?(Array)
+        t = map { |a| a.map(&:as_json) }
+      elsif first.is_a?(Hash) || first.is_a?(ActiveSupport::HashWithIndifferentAccess)
+        t << first.keys
+        t << nil
+        each do |e|
+          t << e.values_at(*first.keys).map(&:as_json)
+        end
+      else
+        return self
+      end
     end
     t
   end
