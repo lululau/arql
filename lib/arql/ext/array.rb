@@ -20,7 +20,7 @@ class Array
     t << first.attribute_names
     t << nil
     each do |e|
-      t << e.attributes.values_at(*first.attribute_names)
+      t << e.attributes.values_at(*first.attribute_names).map(&:as_json)
     end
     t
   end
