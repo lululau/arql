@@ -3,13 +3,19 @@ module Arql
     extend ActiveSupport::Concern
 
     def t
-      Terminal::Table.new { |t|
-        t << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
-        t << :separator
-        self.class.connection.columns(self.class.table_name).each do |column|
-          t << [column.name, read_attribute(column.name), column.sql_type, column.comment || '']
-        end
-      }.to_s
+      puts Terminal::Table.new { |t|
+        v.each { |row| t << (row || :separator) }
+      }
+    end
+
+    def v
+      t = []
+      t << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
+      t << nil
+      self.class.connection.columns(self.class.table_name).each do |column|
+        t << [column.name, read_attribute(column.name), column.sql_type, column.comment || '']
+      end
+      t
     end
 
     def to_insert_sql
@@ -23,7 +29,13 @@ module Arql
     class_methods do
       def t
         table_name = Commands::Table::get_table_name(name)
-        "\nTable: #{table_name}\n" + Commands::Table::table_info(table_name).to_s
+        puts "\nTable: #{table_name}"
+        puts Commands::Table::table_info_table(table_name)
+      end
+
+      def v
+        table_name = Commands::Table::get_table_name(name)
+        Commands::Table::table_info(table_name)
       end
       def to_insert_sql(records, batch_size=1)
         to_sql(records, :skip, batch_size)
