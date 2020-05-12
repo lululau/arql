@@ -1,10 +1,10 @@
 class Object
 
   def j
-    puts to_json
+    to_json
   end
 
   def jj
-    puts JSON.pretty_generate(JSON.parse(to_json))
+    JSON.pretty_generate(JSON.parse(to_json))
   end
 end

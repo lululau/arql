@@ -64,8 +64,10 @@ module Arql
         eval(effective_config[:code])
       elsif effective_config[:args].present?
         effective_config[:args].each { |rb| load(rb) }
-      else
+      elsif STDIN.isatty
         run_repl!
+      else
+        eval(STDIN.read)
       end
     end
 
