@@ -47,7 +47,7 @@ module Arql
 
       def to_sql(records, on_duplicate, batch_size)
         records.in_groups_of(batch_size, false).map do |group|
-        ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: on_duplicate).send(:to_sql) + ';'
+          ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: on_duplicate).send(:to_sql) + ';'
         end.join("\n")
       end
     end
@@ -58,9 +58,62 @@ module Arql
       def models
         @@models ||= []
       end
+
+      def redefine
+        options = @@options
+        @@models.each do |model|
+          Object.send :remove_const, model[:model].name.to_sym if model[:model]
+          Object.send :remove_const, model[:abbr].to_sym if model[:abbr]
+        end
+        @@models = []
+        ActiveRecord::Base.connection.tap do |conn|
+          conn.tables.each do |table_name|
+            conn.primary_key(table_name).tap do |pkey|
+              table_name.camelize.tap do |const_name|
+                const_name = 'Modul' if const_name == 'Module'
+                const_name = 'Clazz' if const_name == 'Class'
+                Class.new(ActiveRecord::Base) do
+                  include Arql::Extension
+                  self.primary_key = pkey
+                  self.table_name = table_name
+                  self.inheritance_column = nil
+                  self.default_timezone = :local
+                  if options[:created_at].present?
+                    define_singleton_method :timestamp_attributes_for_create do
+                      options[:created_at]
+                    end
+                  end
+
+                  if options[:updated_at].present?
+                    define_singleton_method :timestamp_attributes_for_update do
+                      options[:updated_at]
+                    end
+                  end
+                end.tap do |clazz|
+                  Object.const_set(const_name, clazz).tap do |const|
+                    const_name.gsub(/[a-z]*/, '').tap do |abbr|
+                      unless Object.const_defined?(abbr)
+                        Object.const_set abbr, const
+                        abbr_const = abbr
+                      end
+
+                      @@models << {
+                        model: const,
+                        abbr: abbr_const,
+                        table: table_name
+                      }
+                    end
+                  end
+                end
+              end
+            end
+          end
+        end
+      end
     end
 
     def initialize(options)
+      @@options = options
       @@models = []
       ActiveRecord::Base.connection.tap do |conn|
         conn.tables.each do |table_name|
