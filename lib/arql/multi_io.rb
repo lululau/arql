@@ -16,5 +16,13 @@ module Arql
       @targets ||= []
       @targets << target
     end
+
+    def delete(io)
+      @targets.delete(io)
+    end
+
+    def include?(io)
+      @targets.include?(io)
+    end
   end
 end

@@ -4,6 +4,8 @@ module Arql
   class App
 
     class << self
+      attr_accessor :log_io
+
       def config
         @@effective_config
       end
@@ -49,6 +51,9 @@ module Arql
     end
 
     def selected_config
+      if @options.env.present? && !config[@options.env].present?
+        STDERR.puts "Specified ENV `#{@options.env}' not exists"
+      end
       config[@options.env]
     end
 
@@ -88,23 +93,23 @@ module Arql
     end
 
     def show_sql
-      @log_io ||= MultiIO.new
-      ActiveRecord::Base.logger = Logger.new(@log_io)
-      @log_io << STDOUT
+      App.log_io ||= MultiIO.new
+      ActiveRecord::Base.logger = Logger.new(App.log_io)
+      App.log_io << STDOUT
     end
 
     def write_sql
       write_sql_file = effective_config[:write_sql]
-      @log_io ||= MultiIO.new
-      ActiveRecord::Base.logger = Logger.new(@log_io)
-      @log_io << File.new(write_sql_file, 'w')
+      App.log_io ||= MultiIO.new
+      ActiveRecord::Base.logger = Logger.new(App.log_io)
+      App.log_io << File.new(write_sql_file, 'w')
     end
 
     def append_sql
       write_sql_file = effective_config[:append_sql]
-      @log_io ||= MultiIO.new
-      ActiveRecord::Base.logger = Logger.new(@log_io)
-      @log_io << File.new(write_sql_file, 'a')
+      App.log_io ||= MultiIO.new
+      ActiveRecord::Base.logger = Logger.new(App.log_io)
+      App.log_io << File.new(write_sql_file, 'a')
     end
   end
 end
