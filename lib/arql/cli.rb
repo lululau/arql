@@ -107,6 +107,11 @@ module Arql
             @options.append_sql = file
           end
 
+          opts.on('-V', '--version', 'Prints version') do
+            puts "ARQL #{Arql::VERSION}"
+            exit
+          end
+
           opts.on('', '--help', 'Prints this help') do
             puts opts
             exit
