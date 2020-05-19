@@ -282,6 +282,10 @@ ARQL ❯ Person.all.to_a.to_insert_sql
 => "INSERT INTO `person` (`id`,`name`,`age`,`gender`,`grade`,`blood_type`) VALUES (1, 'Jack', 30, NULL, NULL, NULL), (2, 'Jack', 11, 1, NULL, NULL), (3, 'Jack', 12, 1, NULL, NULL), (4, 'Jack', 30, 1, NULL, NULL), (5, 'Jack', 12, 2, NULL, NULL), (6, 'Jack', 2, 2, 2, NULL), (7, 'Jack', 3, 2, 2, NULL), (8, 'Jack', 30, 2, 2, 'AB'), (9, 'Jack', 30, 2, 2, 'AB'), (10, 'Jack', 30, 2, 2, 'AB'), (11, 'Jackson', 30, 2, 2, 'AB') ON DUPLICATE KEY UPDATE `id`=`id`;"
 ```
 
+#### to_create_sql
+
+You can call `to_create_sql` on any ActiveRecord model clas to get create table SQL of the model class / table.
+
 #### t
 
 You can call `t` method on any ActiveRecord model instance to print a pretty table of attributes names and values of the object.

@@ -50,6 +50,10 @@ module Arql
           ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: on_duplicate).send(:to_sql) + ';'
         end.join("\n")
       end
+
+      def to_create_sql
+        ActiveRecord::Base.connection.exec_query("show create table #{table_name}").rows.last.last
+      end
     end
   end
 
