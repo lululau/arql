@@ -284,7 +284,7 @@ ARQL ❯ Person.all.to_a.to_insert_sql
 
 #### to_create_sql
 
-You can call `to_create_sql` on any ActiveRecord model clas to get create table SQL of the model class / table.
+You can call `to_create_sql` on any ActiveRecord model class to get create table SQL of the model class / table.
 
 #### t
 
