@@ -22,8 +22,8 @@ module Arql
           opts.banner = <<~EOF
           Usage: arql [options] [ruby file]
 
-            If neither [ruby file] nor -e option specified, a Pry REPL will be launched,
-            otherwise the specified ruby file or -e option value will be run, and no REPL launched
+            If neither [ruby file] nor -e option specified, and STDIN is not a tty, a Pry REPL will be launched,
+            otherwise the specified ruby file or -e option value or ruby code read from STDIN will be run, and no REPL launched
 
           EOF
 

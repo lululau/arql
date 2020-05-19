@@ -29,7 +29,7 @@ module Arql
     def connect_options
       connect_conf = effective_config.slice(:adapter, :host, :username,
                              :password, :database, :encoding,
-                             :pool, :port)
+                             :pool, :port, :socket)
       if effective_config[:ssh].present?
         connect_conf.merge!(start_ssh_proxy!)
       end
