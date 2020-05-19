@@ -134,13 +134,9 @@ module Arql
       end
 
       def default_initializer
-        conf = File.expand_path('~/.arql.yml')
+        conf = File.expand_path('~/.arql.rb')
         return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.yaml')
-        return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.d/init.yml')
-        return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.d/init.yaml')
+        conf = File.expand_path('~/.arql.d/init.rb')
         return conf if File.file?(conf)
       end
     end

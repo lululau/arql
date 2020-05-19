@@ -23,6 +23,7 @@ module Arql
       @options = options
       Connection.open(connect_options)
       @definition = Definition.new(effective_config)
+      load_initializer!
     end
 
     def connect_options
@@ -34,6 +35,15 @@ module Arql
       end
 
       connect_conf
+    end
+
+    def load_initializer!
+      return unless effective_config[:initializer]
+      unless File.exists?(effective_config[:initializer])
+        STDERR.puts "Specified initializer file not found, #{effective_config[:initializer]}"
+        exit(1)
+      end
+      load(effective_config[:initializer])
     end
 
     def start_ssh_proxy!
