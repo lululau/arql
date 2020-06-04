@@ -23,9 +23,15 @@ class Array
         end
       }
     else
-      puts Terminal::Table.new { |t|
+      table = Terminal::Table.new { |t|
         v.each { |row| t << (row || :separator)}
-      }
+      }.to_s.lines.map(&:chomp)
+
+      terminal_width = `tput cols`.to_i
+      if table.first.size > terminal_width
+        puts table[0..2].join("\n")
+        puts table[3..-1].join("\n#{'-' * terminal_width}\n")
+      end
     end
   end
 
