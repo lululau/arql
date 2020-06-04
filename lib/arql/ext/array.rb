@@ -13,6 +13,22 @@ class Array
     end.join("\n")
   end
 
+  def t(*attrs)
+    if attrs.present? && present? && first.is_a?(ActiveRecord::Base)
+      puts Terminal::Table.new { |t|
+        t << attrs
+        t << :separator
+        each do |e|
+          t << e.attributes.values_at(*attrs.map(&:to_s))
+        end
+      }
+    else
+      puts Terminal::Table.new { |t|
+        v.each { |row| t << (row || :separator)}
+      }
+    end
+  end
+
   def v
     return self unless present?
     t = []
