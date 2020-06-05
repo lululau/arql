@@ -25,12 +25,15 @@ class Array
     else
       table = Terminal::Table.new { |t|
         v.each { |row| t << (row || :separator)}
-      }.to_s.lines.map(&:chomp)
+      }.to_s
 
       terminal_width = `tput cols`.to_i
       if table.first.size > terminal_width
+        table = table.lines.map(&:chomp)
         puts table[0..2].join("\n")
         puts table[3..-1].join("\n#{'-' * terminal_width}\n")
+      else
+        puts table
       end
     end
   end
