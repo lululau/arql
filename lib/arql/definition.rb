@@ -26,6 +26,9 @@ module Arql
       self.class.to_upsert_sql([self])
     end
 
+    included do
+    end
+
     class_methods do
       def t
         table_name = Commands::Table::get_table_name(name)
@@ -161,6 +164,16 @@ module Arql
             end
           end
         end
+      end
+    end
+
+    ::ActiveRecord::Relation.class_eval do
+      def t
+        records.t
+      end
+
+      def v
+        records.v
       end
     end
   end
