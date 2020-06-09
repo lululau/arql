@@ -28,7 +28,7 @@ class Array
       }.to_s
 
       terminal_width = `tput cols`.to_i
-      if table.first.size > terminal_width
+      if table.lines.first.size > terminal_width
         table = table.lines.map(&:chomp)
         puts table[0..2].join("\n")
         puts table[3..-1].join("\n#{'-' * terminal_width}\n")
