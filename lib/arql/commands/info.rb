@@ -1,3 +1,5 @@
+require 'rainbow'
+
 module Arql::Commands
   module Info
     class << self
@@ -5,6 +7,8 @@ module Arql::Commands
         <<~EOF
 
         Database Connection Information:
+
+            Active:    #{color_boolean(ActiveRecord::Base.connection.active?)}
             Host:      #{Arql::App.config[:host]}
             Port:      #{Arql::App.config[:port]}
             Username:  #{Arql::App.config[:username]}
@@ -20,12 +24,23 @@ module Arql::Commands
         <<~EOF
 
         SSH Connection Information:
+
+            Active:     #{color_boolean(Arql::SSHProxy.active?)}
             Host:       #{Arql::App.config[:ssh][:host]}
             Port:       #{Arql::App.config[:ssh][:port]}
             Username:   #{Arql::App.config[:ssh][:user]}
             Password:   #{(Arql::App.config[:ssh][:password] || '').gsub(/./, '*')}
-            Local Port: #{Arql::App.local_ssh_proxy_port}
+            Local Port: #{Arql::SSHProxy.local_ssh_proxy_port}
         EOF
+      end
+
+      private
+      def color_boolean(bool)
+        if bool
+          Rainbow('TRUE').green
+        else
+          Rainbow('FALSE').red
+        end
       end
     end
 

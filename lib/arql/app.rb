@@ -9,10 +9,6 @@ module Arql
       def config
         @@effective_config
       end
-
-      def local_ssh_proxy_port
-        @@local_ssh_proxy_port
-      end
     end
 
     def initialize(options)
@@ -48,11 +44,13 @@ module Arql
 
     def start_ssh_proxy!
       ssh_config = effective_config[:ssh]
-      @ssh_gateway = Net::SSH::Gateway.new(ssh_config[:host], ssh_config[:user], ssh_config.slice(:port, :password).symbolize_keys)
-      @@local_ssh_proxy_port = @ssh_gateway.open(effective_config[:host], effective_config[:port], ssh_config[:local_port])
+      local_ssh_proxy_port = Arql::SSHProxy.connect(ssh_config.slice(:host, :user, :port, :password).merge(
+                                                                                                           forward_host: effective_config[:host],
+                                                                                                           forward_port: effective_config[:port],
+                                                                                                           local_port: ssh_config[:local_port]))
       {
         host: '127.0.0.1',
-        port: @@local_ssh_proxy_port
+        port: local_ssh_proxy_port
       }
     end
 

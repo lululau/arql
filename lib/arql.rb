@@ -4,6 +4,7 @@ require 'arql/id'
 require 'arql/multi_io'
 require 'arql/ext'
 require "arql/repl"
+require "arql/ssh_proxy"
 require "arql/app"
 require "arql/cli"
 
