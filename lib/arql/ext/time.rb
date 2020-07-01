@@ -9,7 +9,7 @@ class Time
     to_s
   end
 
-  def as_json
+  def as_json(*args)
     to_s
   end
 end
