@@ -1,4 +1,5 @@
 require 'net/ssh/gateway'
+require 'arql/ssh_proxy_patch'
 
 module Arql
   class SSHProxy

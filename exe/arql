@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+ArqlSetsidWrrapper = File.dirname(File.absolute_path(__FILE__)) + '/arql_setsid_wrapper'
+
 require "arql"
 
 Arql::Cli.start
