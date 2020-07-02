@@ -9,7 +9,7 @@ module Arql
 
       def connect(config)
         @config = config
-        @ssh_gateway = Net::SSH::Gateway.new(config[:host], config[:user], config.slice(:port, :password).symbolize_keys.merge(keepalive: true, keepalive_interval: 30))
+        @ssh_gateway = Net::SSH::Gateway.new(config[:host], config[:user], config.slice(:port, :password).symbolize_keys.merge(keepalive: true, keepalive_interval: 30, loop_wait: 1))
         @local_ssh_proxy_port = @ssh_gateway.open(config[:forward_host], config[:forward_port], config[:local_port])
       end
 
