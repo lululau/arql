@@ -31,7 +31,7 @@ module Arql
          else
            nest_level_prompt = "(#{obj}:#{nest_level})"
          end
-         "%s#{nest_level_prompt} %s " % [Rainbow('ARQL').red, Rainbow('❯').green]
+         "%s#{Rainbow('@').green}%s#{nest_level_prompt} %s " % [Rainbow('ARQL').red, Rainbow(App.env).yellow, Rainbow('❯').green]
        end]
     end
   end

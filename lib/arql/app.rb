@@ -4,7 +4,7 @@ module Arql
   class App
 
     class << self
-      attr_accessor :log_io
+      attr_accessor :log_io, :env
 
       def config
         @@effective_config
@@ -17,6 +17,7 @@ module Arql
       require "arql/connection"
       require "arql/definition"
       @options = options
+      App.env = @options.env
       Connection.open(connect_options)
       @definition = Definition.new(effective_config)
       load_initializer!
