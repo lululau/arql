@@ -36,11 +36,12 @@ module Arql
 
     def load_initializer!
       return unless effective_config[:initializer]
-      unless File.exists?(effective_config[:initializer])
+      initializer_file = File.expand_path(effective_config[:initializer])
+      unless File.exists?(initializer_file)
         STDERR.puts "Specified initializer file not found, #{effective_config[:initializer]}"
         exit(1)
       end
-      load(effective_config[:initializer])
+      load(initializer_file)
     end
 
     def start_ssh_proxy!
@@ -56,14 +57,16 @@ module Arql
     end
 
     def config
-      @config ||= YAML.load(IO.read(@options.config_file)).with_indifferent_access
+      @config ||= YAML.load(IO.read(File.expand_path(@options.config_file))).with_indifferent_access
     end
 
     def selected_config
       if @options.env.present? && !config[@options.env].present?
         STDERR.puts "Specified ENV `#{@options.env}' not exists"
       end
-      config[@options.env]
+      sc = config[@options.env]
+      sc[:database] = File.expand_path(sc[:database]) if sc[:adapter] == 'sqlite3'
+      sc
     end
 
     def effective_config

@@ -10,10 +10,7 @@ module Arql
       end
 
       def parse_options!
-        @options = OpenStruct.new(adapter: 'mysql2',
-                                  encoding: 'utf8',
-                                  pool: 5,
-                                  config_file: default_config_file,
+        @options = OpenStruct.new(config_file: default_config_file,
                                   initializer: default_initializer,
                                   ssh: {})
 
