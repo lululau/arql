@@ -64,13 +64,23 @@ module Arql
       if @options.env.present? && !config[@options.env].present?
         STDERR.puts "Specified ENV `#{@options.env}' not exists"
       end
-      sc = config[@options.env]
-      sc[:database] = File.expand_path(sc[:database]) if sc[:adapter] == 'sqlite3'
-      sc
+      if env = @options.env
+        config[env]
+      else
+        {}
+      end
     end
 
     def effective_config
-      @@effective_config ||= selected_config.deep_merge(@options.to_h)
+      @@effective_config ||= nil
+      unless @@effective_config
+        @@effective_config = selected_config.deep_merge(@options.to_h)
+        if @@effective_config[:adapter].blank?
+          @@effective_config[:adapter] = 'sqlite3'
+        end
+        @@effective_config[:database] = File.expand_path(@@effective_config[:database]) if @@effective_config[:adapter] == 'sqlite3'
+      end
+      @@effective_config
     end
 
     def run!
