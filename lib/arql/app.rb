@@ -4,10 +4,18 @@ module Arql
   class App
 
     class << self
-      attr_accessor :log_io, :env
+      attr_accessor :log_io, :env, :prompt
 
       def config
         @@effective_config
+      end
+
+      def prompt
+        if env
+          env
+        else
+          File.basename(@@effective_config[:database])
+        end
       end
     end
 
