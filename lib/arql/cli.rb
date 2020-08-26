@@ -37,7 +37,7 @@ module Arql
           end
 
           opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify database Adapter, default is mysql2') do |db_adapter|
-            @options.dapter = db_adapter
+            @options.adapter = db_adapter
           end
 
           opts.on('-hDB_HOST', '--db-host=DB_HOST', 'Specify database host') do |db_host|
