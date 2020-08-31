@@ -99,7 +99,10 @@ module Kernel
   def parse_excel(filename)
     xlsx = Roo::Excelx.new(File.expand_path(filename))
     xlsx.sheets.each_with_object({}) do |sheet_name, result|
-      result[sheet_name] = xlsx.sheet(sheet_name).to_a
+      begin
+        result[sheet_name] = xlsx.sheet(sheet_name).to_a
+      rescue
+      end
     end
   end
 end
