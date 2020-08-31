@@ -62,4 +62,47 @@ class Array
     end
     t
   end
+
+  def write_csv(filename, *fields, **options)
+    generate_csv(filename, **options) do |csv|
+      if size > 0 && first.is_a?(ActiveRecord::Base)
+        if fields.empty?
+          fields = first.attributes.keys
+        else
+          fields = fields.map(&:to_s)
+        end
+        csv << fields
+      end
+      each do |row|
+        if row.is_a?(Array)
+          csv << row.map(&:to_s)
+        else
+          csv << row.slice(fields).values.map(&:to_s)
+        end
+      end
+    end
+  end
+
+  def write_excel(filename, *fields, **options)
+    sheet_name = options[:sheet_name] || 'Sheet1'
+    generate_excel(filename) do |workbook|
+      workbook.add_worksheet(name: sheet_name) do |sheet|
+        if size > 0 && first.is_a?(ActiveRecord::Base)
+          if fields.empty?
+            fields = first.attributes.keys
+          else
+            fields = fields.map(&:to_s)
+          end
+          sheet.add_row(fields, types: [:string] * fields.size)
+        end
+        each do |row|
+          if row.is_a?(Array)
+            sheet.add_row(row.map(&:to_s), types: [:string] * row.size)
+          else
+            sheet.add_row(row.slice(fields).values.map(&:to_s), types: [:string] * fields.size)
+          end
+        end
+      end
+    end
+  end
 end

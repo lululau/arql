@@ -26,6 +26,14 @@ module Arql
       self.class.to_upsert_sql([self])
     end
 
+    def write_csv(filename, *fields, **options)
+      [self].write_csv(filename, *fields, **options)
+    end
+
+    def write_excel(filename, *fields, **options)
+      [self].write_excel(filename, *fields, **options)
+    end
+
     included do
     end
 
@@ -175,6 +183,15 @@ module Arql
       def v
         records.v
       end
+
+      def write_csv(filename, *fields, **options)
+        records.write_csv(filename, *fields, **options)
+      end
+
+      def write_excel(filename, *fields, **options)
+        records.write_excel(filename, *fields, **options)
+      end
+
     end
   end
 end

@@ -1,4 +1,7 @@
 require 'table_print'
+require 'roo'
+require 'caxlsx'
+require 'csv'
 require "arql/version"
 require 'arql/id'
 require 'arql/multi_io'

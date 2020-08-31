@@ -37,4 +37,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'rainbow', '~> 3.0.0'
   spec.add_dependency 'terminal-table', '~> 1.8.0'
   spec.add_dependency 'table_print', '~> 1.5.6'
+  spec.add_dependency 'roo', '~> 2.8.3'
+  spec.add_dependency 'caxlsx', '~> 3.0.2'
 end
