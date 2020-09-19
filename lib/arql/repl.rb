@@ -25,7 +25,7 @@ module Arql
     end
 
     def prompt
-      [proc do |obj, nest_level, _|
+      [proc do |obj, nest_level, pry_instance|
          if obj == main_object && nest_level == 0
            nest_level_prompt = ''
          else
@@ -35,7 +35,7 @@ module Arql
                                  "(#{obj}:#{nest_level})"
                                end
          end
-         "%s#{Rainbow('@').green}%s#{nest_level_prompt} %s " % [Rainbow('ARQL').red, Rainbow(App.prompt).yellow, Rainbow('❯').green]
+         "%s#{Rainbow('@').green}%s#{nest_level_prompt} [%d] %s " % [Rainbow('ARQL').red, Rainbow(App.prompt).yellow, pry_instance.input_ring.count, Rainbow('❯').green]
        end]
     end
   end
