@@ -15,4 +15,8 @@ class Object
   def jjp
     puts jj
   end
+
+  def a
+    [self]
+  end
 end

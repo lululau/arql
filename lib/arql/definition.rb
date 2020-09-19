@@ -124,6 +124,8 @@ module Arql
             end
           end
         end
+
+        App.instance&.load_initializer!
       end
     end
 
@@ -176,12 +178,16 @@ module Arql
     end
 
     ::ActiveRecord::Relation.class_eval do
-      def t
-        records.t
+      def t(*attrs)
+        records.t(*attrs)
       end
 
       def v
         records.v
+      end
+
+      def a
+        to_a
       end
 
       def write_csv(filename, *fields, **options)

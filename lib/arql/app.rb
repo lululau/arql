@@ -4,7 +4,7 @@ module Arql
   class App
 
     class << self
-      attr_accessor :log_io, :env, :prompt
+      attr_accessor :log_io, :env, :prompt, :instance
 
       def config
         @@effective_config
@@ -29,6 +29,7 @@ module Arql
       Connection.open(connect_options)
       @definition = Definition.new(effective_config)
       load_initializer!
+      App.instance = self
     end
 
     def connect_options
