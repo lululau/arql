@@ -13,8 +13,16 @@ class Array
     end.join("\n")
   end
 
-  def t(*attrs)
-    if attrs.present? && present? && first.is_a?(ActiveRecord::Base)
+  def t(*attrs, **options)
+    if (attrs.present? || options.present? && options[:except]) && present? && first.is_a?(ActiveRecord::Base)
+      if options.present? && options[:except]
+        attrs = first.attribute_names.map(&:to_sym) if attrs.empty?
+        if options[:except].is_a?(Regexp)
+          attrs.reject! { |e| e =~ options[:except] }
+        else
+          attrs -= [options[:except]].flatten
+        end
+      end
       puts Terminal::Table.new { |t|
         t << attrs
         t << :separator

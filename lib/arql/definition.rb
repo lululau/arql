@@ -178,8 +178,8 @@ module Arql
     end
 
     ::ActiveRecord::Relation.class_eval do
-      def t(*attrs)
-        records.t(*attrs)
+      def t(*attrs, **options)
+        records.t(*attrs, **options)
       end
 
       def v
