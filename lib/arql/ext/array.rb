@@ -15,8 +15,10 @@ class Array
 
   def t(*attrs, **options)
     if (attrs.present? || options.present? && options[:except]) && present? && first.is_a?(ActiveRecord::Base)
+      column_names = first.attribute_names.map(&:to_sym)
+      attrs = attrs.flat_map { |e| e.is_a?(Regexp) ? column_names.grep(e) : e }.uniq
       if options.present? && options[:except]
-        attrs = first.attribute_names.map(&:to_sym) if attrs.empty?
+        attrs = column_names if attrs.empty?
         if options[:except].is_a?(Regexp)
           attrs.reject! { |e| e =~ options[:except] }
         else
