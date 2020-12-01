@@ -87,7 +87,7 @@ module Arql
               table_name.camelize.tap do |const_name|
                 const_name = 'Modul' if const_name == 'Module'
                 const_name = 'Clazz' if const_name == 'Class'
-                Class.new(ActiveRecord::Base) do
+                Class.new(::ArqlModel) do
                   include Arql::Extension
                   self.primary_key = pkey
                   self.table_name = table_name
@@ -133,12 +133,13 @@ module Arql
       @@options = options
       @@models = []
       ActiveRecord::Base.connection.tap do |conn|
+        Object.const_set('ArqlModel', Class.new(ActiveRecord::Base) { self.abstract_class = true })
         conn.tables.each do |table_name|
           conn.primary_key(table_name).tap do |pkey|
             table_name.camelize.tap do |const_name|
               const_name = 'Modul' if const_name == 'Module'
               const_name = 'Clazz' if const_name == 'Class'
-              Class.new(ActiveRecord::Base) do
+              Class.new(::ArqlModel) do
                 include Arql::Extension
                 self.primary_key = pkey
                 self.table_name = table_name
