@@ -83,6 +83,7 @@ module Arql
         @@models = []
         ActiveRecord::Base.connection.tap do |conn|
           conn.tables.each do |table_name|
+            table_comment = conn.table_comment(table_name)
             conn.primary_key(table_name).tap do |pkey|
               table_name.camelize.tap do |const_name|
                 const_name = 'Modul' if const_name == 'Module'
@@ -115,7 +116,8 @@ module Arql
                       @@models << {
                         model: const,
                         abbr: abbr_const,
-                        table: table_name
+                        table: table_name,
+                        comment: table_comment
                       }
                     end
                   end
@@ -135,6 +137,7 @@ module Arql
       ActiveRecord::Base.connection.tap do |conn|
         Object.const_set('ArqlModel', Class.new(ActiveRecord::Base) { self.abstract_class = true })
         conn.tables.each do |table_name|
+          table_comment = conn.table_comment(table_name)
           conn.primary_key(table_name).tap do |pkey|
             table_name.camelize.tap do |const_name|
               const_name = 'Modul' if const_name == 'Module'
@@ -167,7 +170,8 @@ module Arql
                     @@models << {
                       model: const,
                       abbr: abbr_const,
-                      table: table_name
+                      table: table_name,
+                      comment: table_comment
                     }
                   end
                 end
