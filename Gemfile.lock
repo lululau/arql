@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    arql (0.2.5)
+    arql (0.2.6)
       activerecord (~> 6.0.3)
       activesupport (~> 6.0.3)
       caxlsx (~> 3.0.2)
