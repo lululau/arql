@@ -107,10 +107,15 @@ module Arql
                   end
                 end.tap do |clazz|
                   Object.const_set(const_name, clazz).tap do |const|
-                    const_name.gsub(/[a-z]*/, '').tap do |abbr|
-                      unless Object.const_defined?(abbr)
-                        Object.const_set abbr, const
-                        abbr_const = abbr
+                    const_name.gsub(/[a-z]*/, '').tap do |bare_abbr|
+                      abbr_const = nil
+                      9.times do |idx|
+                        abbr = idx.zero? ? bare_abbr : "#{bare_abbr}#{idx+1}"
+                        unless Object.const_defined?(abbr)
+                          Object.const_set abbr, const
+                          abbr_const = abbr
+                          break
+                        end
                       end
 
                       @@models << {
@@ -161,10 +166,15 @@ module Arql
                 end
               end.tap do |clazz|
                 Object.const_set(const_name, clazz).tap do |const|
-                  const_name.gsub(/[a-z]*/, '').tap do |abbr|
-                    unless Object.const_defined?(abbr)
-                      Object.const_set abbr, const
-                      abbr_const = abbr
+                  const_name.gsub(/[a-z]*/, '').tap do |bare_abbr|
+                    abbr_const = nil
+                    9.times do |idx|
+                      abbr = idx.zero? ? bare_abbr : "#{bare_abbr}#{idx+1}"
+                      unless Object.const_defined?(abbr)
+                        Object.const_set abbr, const
+                        abbr_const = abbr
+                        break
+                      end
                     end
 
                     @@models << {
