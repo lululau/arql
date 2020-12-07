@@ -27,7 +27,7 @@ module Arql::Commands
 
   Pry.commands.block_command 'm' do |regexp|
     puts
-    puts Models::models_table(regexp.try { |e| eval(e) })
+    puts Models::models_table(regexp.try { |e| e.start_with?('/') ? eval(e) : Regexp.new(e) })
   end
 
   Pry.commands.alias_command 'l', 'm'
