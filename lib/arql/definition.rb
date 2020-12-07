@@ -90,7 +90,11 @@ module Arql
                 const_name = 'Clazz' if const_name == 'Class'
                 Class.new(::ArqlModel) do
                   include Arql::Extension
-                  self.primary_key = pkey
+                  if pkey.is_a?(Array)
+                    self.primary_keys = pkey
+                  else
+                    self.primary_key = pkey
+                  end
                   self.table_name = table_name
                   self.inheritance_column = nil
                   self.default_timezone = :local
@@ -149,7 +153,11 @@ module Arql
               const_name = 'Clazz' if const_name == 'Class'
               Class.new(::ArqlModel) do
                 include Arql::Extension
-                self.primary_key = pkey
+                if pkey.is_a?(Array)
+                  self.primary_keys = pkey
+                else
+                  self.primary_key = pkey
+                end
                 self.table_name = table_name
                 self.inheritance_column = nil
                 self.default_timezone = :local

@@ -25,7 +25,7 @@ module Arql::Commands
         t << nil
         connection = ::ActiveRecord::Base.connection
         connection.columns(table_name).each do |column|
-          pk = if column.name == connection.primary_key(table_name)
+          pk = if [connection.primary_key(table_name)].flatten.include?(column.name)
                  'Y'
                else
                  ''

@@ -22,6 +22,7 @@ module Arql
     def initialize(options)
       require 'active_support/all'
       require 'active_record'
+      require 'composite_primary_keys'
       require "arql/connection"
       require "arql/definition"
       @options = options

@@ -29,6 +29,7 @@ Gem::Specification.new do |spec|
   # spec.add_dependency 'activerecord-sqlserver-adapter'
   # spec.add_dependency 'activerecord-oracle_enhanced-adapter'
   spec.add_dependency 'activerecord', '~> 6.0.3'
+  spec.add_dependency 'composite_primary_keys', '~> 12.0.3'
   spec.add_dependency 'activesupport', '~> 6.0.3'
   spec.add_dependency 'net-ssh-gateway', '~> 2.0.0'
   spec.add_dependency 'pry', '~> 0.13.1'
