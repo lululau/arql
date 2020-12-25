@@ -25,7 +25,7 @@ module Kernel
           Terminal::Table.new { |t|
           t.headings = ['PK', 'Name', 'SQL Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
           t.rows = table[:columns].map { |column|
-            pk = if [::ActiveRecord::Base.connection.primary_key(table_name)].flatten.include?(column_name)
+            pk = if [::ActiveRecord::Base.connection.primary_key(table_name)].flatten.include?(column)
                    'Y'
                  else
                    ''
@@ -44,7 +44,7 @@ module Kernel
           Terminal::Table.new { |t|
           t.headings = ['PK', 'Name', 'SQL Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
           t.rows = table[:columns].map { |column|
-            pk = if [::ActiveRecord::Base.connection.primary_key(table_name)].flatten.include?(column_name)
+            pk = if [::ActiveRecord::Base.connection.primary_key(table_name)].flatten.include?(column)
                    'Y'
                  else
                    ''
