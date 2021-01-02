@@ -83,11 +83,17 @@ class Array
         end
         csv << fields
       end
+      if size > 0 && first.is_a?(Hash)
+        if fields.empty?
+          fields = first.keys
+        end
+        csv << fields
+      end
       each do |row|
         if row.is_a?(Array)
           csv << row.map(&:to_s)
         else
-          csv << row.slice(fields).values.map(&:to_s)
+          csv << row.slice(*fields).values.map(&:to_s)
         end
       end
     end
@@ -105,11 +111,17 @@ class Array
           end
           sheet.add_row(fields, types: [:string] * fields.size)
         end
+        if size > 0 && first.is_a?(Hash)
+          if fields.empty?
+            fields = first.keys
+          end
+          sheet.add_row(fields, types: [:string] * fields.size)
+        end
         each do |row|
           if row.is_a?(Array)
             sheet.add_row(row.map(&:to_s), types: [:string] * row.size)
           else
-            sheet.add_row(row.slice(fields).values.map(&:to_s), types: [:string] * fields.size)
+            sheet.add_row(row.slice(*fields).values.map(&:to_s), types: [:string] * fields.size)
           end
         end
       end

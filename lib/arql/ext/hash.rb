@@ -3,19 +3,35 @@ class Hash
     generate_excel(filename) do |workbook|
       each do |sheet_name, sheet_data|
         workbook.add_worksheet(name: sheet_name) do |sheet|
-          if sheet_data.is_a?(Hash) && sheet_data[:fields].present?
-              fields = sheet_data[:fields].map(&:to_s)
-            else
-              fields = sheet_data[:data].first.attributes.keys
-            end
+          if sheet_data.is_a?(Hash)
+            fields = sheet_data[:fields].map(&:to_s)
             sheet.add_row(fields, types: [:string] * fields.size)
-            sheet_data = sheet_data[:data]
+            sheet_data[:data].each do |row|
+              sheet.add_row(row.slice(*fields).values.map(&:to_s), types: [:string] * fields.size)
+            end
           end
-          sheet_data.each do |row|
-            if row.is_a?(Array)
-              sheet.add_row(row.map(&:to_s), types: [:string] * row.size)
-            else
-              sheet.add_row(row.slice(fields).values.map(&:to_s), types: [:string] * fields.size)
+
+          if sheet_data.is_a?(Array)
+            if sheet_data.size > 0 && sheet_data.first.is_a?(ActiveModel::Base)
+              fields = sheet_data.first.attributes.keys
+              sheet.add_row(fields, types: [:string] * fields.size)
+              sheet_data.each do |row|
+                sheet.add_row(row.slice(*fields).values.map(&:to_s), types: [:string] * fields.size)
+              end
+            end
+
+            if sheet_data.size > 0 && sheet_data.first.is_a?(Hash)
+              fields = sheet_data.first.keys
+              sheet.add_row(fields, types: [:string] * fields.size)
+              sheet_data.each do |row|
+                sheet.add_row(row.slice(*fields).values.map(&:to_s), types: [:string] * fields.size)
+              end
+            end
+
+            if sheet_data.size > 0 && sheet_data.first.is_a?(Array)
+              sheet_data.each do |row|
+                sheet.add_row(row.map(&:to_s), types: [:string] * fields.size)
+              end
             end
           end
         end
