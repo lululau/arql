@@ -95,7 +95,7 @@ module Kernel
   def generate_excel(filename)
     Axlsx::Package.new do |package|
       yield(package.workbook)
-      package.serialize(filename)
+      package.serialize(File.expand_path(filename))
     end
   end
 

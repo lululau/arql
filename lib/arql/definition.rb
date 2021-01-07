@@ -35,6 +35,10 @@ module Arql
       [self].write_excel(filename, *fields, **options)
     end
 
+    def dump(filename, batch_size=500)
+      [self].dump(filename, batch_size)
+    end
+
     included do
     end
 
@@ -65,6 +69,10 @@ module Arql
 
       def to_create_sql
         ActiveRecord::Base.connection.exec_query("show create table #{table_name}").rows.last.last
+      end
+
+      def dump(filename, no_create_table=false)
+        Arql::Mysqldump.new.dump_table(filename, table_name, no_create_table)
       end
     end
   end
@@ -237,6 +245,9 @@ module Arql
         records.write_excel(filename, *fields, **options)
       end
 
+      def dump(filename, batch_size=500)
+        records.dump(filename, batch_size)
+      end
     end
   end
 end

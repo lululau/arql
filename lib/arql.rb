@@ -10,6 +10,7 @@ require "arql/repl"
 require "arql/ssh_proxy"
 require "arql/app"
 require "arql/cli"
+require "arql/mysqldump"
 
 module Arql
 end

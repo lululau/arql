@@ -127,4 +127,13 @@ class Array
       end
     end
   end
+
+  def dump(filename, batch_size=500)
+    File.open(File.expand_path(filename), 'w') do |file|
+      group_by(&:class).each do |(klass, records)|
+        file.puts(klass.to_upsert_sql(records, batch_size))
+      end
+    end
+    {size: size, file: File.expand_path(filename)}
+  end
 end
