@@ -68,6 +68,8 @@ module Arql
     end
 
     def config
+      @config ||= YAML.load(IO.read(File.expand_path(@options.config_file)), aliases: true).with_indifferent_access
+    rescue ArgumentError
       @config ||= YAML.load(IO.read(File.expand_path(@options.config_file))).with_indifferent_access
     end
 
