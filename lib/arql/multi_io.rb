@@ -5,7 +5,14 @@ module Arql
     end
 
     def write(*args)
-      @targets.each {|t| t.write(*args)}
+      @targets.each do |t|
+        if t.isatty
+          t.write(*args)
+        else
+          t.write(*(args.map { |str| str.gsub(/\e\[(\d+)m/, '')}))
+        end
+        t.flush
+      end
     end
 
     def close

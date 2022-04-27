@@ -35,7 +35,12 @@ module Arql
                                  "(#{obj}:#{nest_level})"
                                end
          end
-         "%s#{Rainbow('@').green}%s#{nest_level_prompt} [%d] %s " % [Rainbow('ARQL').red, Rainbow(App.prompt).yellow, pry_instance.input_ring.count, Rainbow('❯').green]
+          if Arql::Commands::Sandbox.enabled
+            sandbox_indicator = ' [%s] ' % Rainbow('sandbox').green.bright
+          else
+            sandbox_indicator = ''
+          end
+         "%s#{Rainbow('@').green}%s%s#{nest_level_prompt} [%d] %s " % [Rainbow('ARQL').red, Rainbow(App.prompt).yellow, sandbox_indicator, pry_instance.input_ring.count, Rainbow('❯').green]
        end]
     end
   end
