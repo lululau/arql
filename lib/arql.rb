@@ -11,6 +11,7 @@ require "arql/ssh_proxy"
 require "arql/app"
 require "arql/cli"
 require "arql/mysqldump"
+require "arql/vd"
 
 module Arql
 end

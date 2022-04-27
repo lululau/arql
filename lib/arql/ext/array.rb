@@ -1,3 +1,5 @@
+require 'arql/vd'
+
 class Array
   def to_insert_sql(batch_size=500)
     raise 'All element should be an ActiveRecord instance object' unless all? { |e| e.is_a?(ActiveRecord::Base) }
@@ -46,6 +48,33 @@ class Array
         puts table
       end
     end
+  end
+
+  def vd(*attrs, **options)
+    if (attrs.present? || options.present? && options[:except]) && present? && first.is_a?(ActiveRecord::Base)
+      column_names = first.attribute_names.map(&:to_sym)
+      attrs = attrs.flat_map { |e| e.is_a?(Regexp) ? column_names.grep(e) : e }.uniq
+      if options.present? && options[:except]
+        attrs = column_names if attrs.empty?
+        if options[:except].is_a?(Regexp)
+          attrs.reject! { |e| e =~ options[:except] }
+        else
+          attrs -= [options[:except]].flatten
+        end
+      end
+
+      Arql::VD.new do |vd|
+        vd << attrs
+        each do |e|
+          vd << e.attributes.values_at(*attrs.map(&:to_s))
+        end
+      end
+    else
+      Arql::VD.new do |vd|
+        v.each { |row| vd << row if row }
+      end
+    end
+    nil
   end
 
   def v

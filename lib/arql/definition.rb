@@ -1,4 +1,5 @@
 require 'arql/concerns'
+require 'arql/vd'
 module Arql
   module Extension
     extend ActiveSupport::Concern
@@ -7,6 +8,15 @@ module Arql
       puts Terminal::Table.new { |t|
         v.each { |row| t << (row || :separator) }
       }
+    end
+
+    def vd
+      VD.new do |vd|
+        vd << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
+        self.class.connection.columns(self.class.table_name).each do |column|
+          vd << [column.name, read_attribute(column.name), column.sql_type, column.comment || '']
+        end
+      end
     end
 
     def v
@@ -47,6 +57,12 @@ module Arql
         table_name = Commands::Table::get_table_name(name)
         puts "\nTable: #{table_name}"
         puts Commands::Table::table_info_table(table_name)
+      end
+
+      def vd
+        table_name = Commands::Table::get_table_name(name)
+        Commands::VD::table_info_vd(table_name)
+        nil
       end
 
       def v
@@ -227,6 +243,10 @@ module Arql
     ::ActiveRecord::Relation.class_eval do
       def t(*attrs, **options)
         records.t(*attrs, **options)
+      end
+
+      def vd(*attrs, **options)
+        records.vd(*attrs, **options)
       end
 
       def v
