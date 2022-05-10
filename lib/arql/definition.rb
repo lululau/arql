@@ -1,5 +1,6 @@
 require 'arql/concerns'
 require 'arql/vd'
+
 module Arql
   module Extension
     extend ActiveSupport::Concern
@@ -107,18 +108,21 @@ module Arql
         end
         @@models = []
         ActiveRecord::Base.connection.tap do |conn|
-          conn.tables.each do |table_name|
-            table_comment = conn.table_comment(table_name)
-            conn.primary_key(table_name).tap do |pkey|
+          tables = conn.tables
+          comments = conn.table_comment_of_tables(tables)
+          primary_keys = conn.primary_keys_of_tables(tables)
+          tables.each do |table_name|
+            table_comment = comments[table_name]
+            primary_keys[table_name].tap do |pkey|
               table_name.camelize.tap do |const_name|
                 const_name = 'Modul' if const_name == 'Module'
                 const_name = 'Clazz' if const_name == 'Class'
                 Class.new(::ArqlModel) do
                   include Arql::Extension
-                  if pkey.is_a?(Array)
+                  if pkey.is_a?(Array) && pkey.size > 1
                     self.primary_keys = pkey
                   else
-                    self.primary_key = pkey
+                    self.primary_key = pkey&.first
                   end
                   self.table_name = table_name
                   self.inheritance_column = nil
@@ -185,18 +189,29 @@ module Arql
                              end.t
                            end
                          end)
-        conn.tables.each do |table_name|
-          table_comment = conn.table_comment(table_name)
-          conn.primary_key(table_name).tap do |pkey|
+
+        tables = conn.tables
+        if conn.adapter_name == 'Mysql2'
+          require 'arql/ext/active_record/connection_adapters/abstract_mysql_adapter'
+          comments = conn.table_comment_of_tables(tables)
+          primary_keys = conn.primary_keys_of_tables(tables)
+        else
+          comments = tables.map { |t| [t, conn.table_comment(t)] }.to_h
+          primary_keys = tables.map { |t| [t, conn.primary_keys(t)] }.to_h
+        end
+
+        tables.each do |table_name|
+          table_comment = comments[table_name]
+          primary_keys[table_name].tap do |pkey|
             table_name.camelize.tap do |const_name|
               const_name = 'Modul' if const_name == 'Module'
               const_name = 'Clazz' if const_name == 'Class'
               Class.new(::ArqlModel) do
                 include Arql::Extension
-                if pkey.is_a?(Array)
+                if pkey.is_a?(Array) && pkey.size > 1
                   self.primary_keys = pkey
                 else
-                  self.primary_key = pkey
+                  self.primary_key = pkey&.first
                 end
                 self.table_name = table_name
                 self.inheritance_column = nil
