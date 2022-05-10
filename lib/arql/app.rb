@@ -29,8 +29,14 @@ module Arql
       App.env = @options.env
       App.connect_options = connect_options
       Connection.open(App.connect_options)
+      print "Defining models..."
       @definition = Definition.new(effective_config)
+      print "\u001b[2K"
+      puts "\rModels defined"
+      print "Running initializers..."
       load_initializer!
+      print "\u001b[2K"
+      puts "\rInitializers loaded"
       App.instance = self
     end
 
