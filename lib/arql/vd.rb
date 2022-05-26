@@ -15,7 +15,7 @@ module Arql
         io.puts(csv)
         io.close_write
       end
-      print "\033[5q"
+      print "\033[5 q"
     end
 
     def <<(row)
