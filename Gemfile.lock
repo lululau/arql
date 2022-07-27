@@ -2,7 +2,7 @@ PATH
   remote: .
   specs:
     arql (0.3.9)
-      activerecord (>= 6.0.3, < 6.2.0)
+      activerecord (>= 6.0.3, < 7.1.0)
       activesupport (~> 6.0.3)
       caxlsx (~> 3.0.2)
       composite_primary_keys (~> 12.0.3)
@@ -20,12 +20,12 @@ PATH
 GEM
   remote: https://rubygems.org/
   specs:
-    activemodel (6.0.4.4)
-      activesupport (= 6.0.4.4)
-    activerecord (6.0.4.4)
-      activemodel (= 6.0.4.4)
-      activesupport (= 6.0.4.4)
-    activesupport (6.0.4.4)
+    activemodel (6.0.5.1)
+      activesupport (= 6.0.5.1)
+    activerecord (6.0.5.1)
+      activemodel (= 6.0.5.1)
+      activesupport (= 6.0.5.1)
+    activesupport (6.0.5.1)
       concurrent-ruby (~> 1.0, >= 1.0.2)
       i18n (>= 0.7, < 2)
       minitest (~> 5.1)
@@ -42,14 +42,14 @@ GEM
       activerecord (~> 6.0.0)
     concurrent-ruby (1.1.10)
     htmlentities (4.3.4)
-    i18n (1.8.11)
+    i18n (1.12.0)
       concurrent-ruby (~> 1.0)
     method_source (1.0.0)
     mimemagic (0.4.3)
       nokogiri (~> 1)
       rake
     mini_portile2 (2.8.0)
-    minitest (5.15.0)
+    minitest (5.16.2)
     mysql2 (0.5.3)
     net-ssh (6.1.0)
     net-ssh-gateway (2.0.0)
@@ -84,7 +84,7 @@ GEM
     webrick (1.7.0)
     yard (0.9.27)
       webrick (~> 1.7.0)
-    zeitwerk (2.5.4)
+    zeitwerk (2.6.0)
 
 PLATFORMS
   ruby
