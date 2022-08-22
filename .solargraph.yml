@@ -8,3 +8,4 @@ require:
 - activerecord
 - activestorage
 - activesupport
+- caxlsx
