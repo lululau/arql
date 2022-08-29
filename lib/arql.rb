@@ -2,6 +2,7 @@ require 'table_print'
 require 'roo'
 require 'caxlsx'
 require 'csv'
+require 'kaminari/activerecord'
 require "arql/version"
 require 'arql/id'
 require 'arql/multi_io'
