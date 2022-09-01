@@ -1,7 +1,7 @@
 PATH
   remote: .
   specs:
-    arql (0.3.11)
+    arql (0.3.12)
       activerecord (>= 6.1.5, < 7.1.0)
       activesupport (>= 6.1.5, < 7.1.0)
       caxlsx (~> 3.0.2)
@@ -53,14 +53,12 @@ GEM
     mimemagic (0.4.3)
       nokogiri (~> 1)
       rake
-    mini_portile2 (2.8.0)
     minitest (5.16.3)
     mysql2 (0.5.4)
     net-ssh (7.0.1)
     net-ssh-gateway (2.0.0)
       net-ssh (>= 4.0.0)
-    nokogiri (1.13.8)
-      mini_portile2 (~> 2.8.0)
+    nokogiri (1.13.8-x86_64-darwin)
       racc (~> 1.4)
     pry (0.13.1)
       coderay (~> 1.1)
