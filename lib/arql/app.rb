@@ -104,7 +104,7 @@ module Arql
       if effective_config[:code].present?
         eval(effective_config[:code])
       elsif effective_config[:args].present?
-        effective_config[:args].each { |rb| load(rb) }
+        effective_config[:args].first.tap { |file| load(file) }
       elsif STDIN.isatty
         run_repl!
       else
