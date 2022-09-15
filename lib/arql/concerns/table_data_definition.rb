@@ -101,7 +101,7 @@ module Arql
         #   Post.change_column(:description, :text)
         #
         def change_column(column_name, type, options = {})
-          ActiveRecord::Base.connection.change_column(table_name, column_name, type, options)
+          ActiveRecord::Base.connection.change_column(table_name, column_name, type, **options)
         end
 
         # Removes the column from the table definition.
@@ -229,7 +229,7 @@ module Arql
         #
         # For more information see the {"Transactional Migrations" section}[rdoc-ref:Migration].
         def add_index(column_name, options = {})
-          ActiveRecord::Base.connection.add_index(table_name, column_name, options)
+          ActiveRecord::Base.connection.add_index(table_name, column_name, **options)
         end
 
         # Adds a new foreign key.
@@ -518,7 +518,7 @@ module Arql
         #
         # For more information see the {"Transactional Migrations" section}[rdoc-ref:Migration].
         def remove_index(options = {})
-          ActiveRecord::Base.connection.remove_index(table_name, options)
+          ActiveRecord::Base.connection.remove_index(table_name, **options)
         end
 
         # Removes the timestamp columns (+created_at+ and +updated_at+) from the table definition.
