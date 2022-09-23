@@ -49,4 +49,8 @@ module Kernel
   def table_names
     models[2..-1].map(&:first)
   end
+
+  def model_names
+    models[2..-1].map(&:second)
+  end
 end
