@@ -41,4 +41,12 @@ module Kernel
   def tables
     models
   end
+
+  def model_classes
+    ::ArqlModel.subclasses
+  end
+
+  def table_names
+    models[2..-1].map(&:first)
+  end
 end
