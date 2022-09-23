@@ -4,7 +4,7 @@ module Kernel
 
   include ::Arql::Concerns::GlobalDataDefinition
 
-  def sql(sql)
+  def q(sql)
     ActiveRecord::Base.connection.exec_query(sql)
   end
 
