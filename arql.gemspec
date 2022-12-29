@@ -23,9 +23,9 @@ Gem::Specification.new do |spec|
   spec.executables   = spec.files.grep(%r{^exe/}) { |f| File.basename(f) }
   spec.require_paths = ["lib"]
 
-  spec.add_dependency 'mysql2', '~> 0.5.3'
+  spec.add_dependency 'mysql2', '~> 0.5.4'
   # spec.add_dependency 'pg', '>= 0.18', '< 2.0'
-  spec.add_dependency 'sqlite3', '~> 1.4'
+  spec.add_dependency 'sqlite3', '~> 1.5.4'
   # spec.add_dependency 'activerecord-sqlserver-adapter'
   # spec.add_dependency 'activerecord-oracle_enhanced-adapter'
   spec.add_dependency 'activerecord', '>= 6.1.5', '< 7.1.0'
@@ -33,13 +33,13 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'composite_primary_keys', '~> 14.0.4'
   spec.add_dependency 'activesupport', '>= 6.1.5', '< 7.1.0'
   spec.add_dependency 'net-ssh-gateway', '~> 2.0.0'
-  spec.add_dependency 'pry', '~> 0.13.1'
-  spec.add_dependency 'pry-byebug', '~> 3.9.0'
-  spec.add_dependency 'pry-doc', '>= 1.0.0'
+  spec.add_dependency 'pry', '~> 0.14.1'
+  spec.add_dependency 'pry-byebug', '~> 3.10.1'
+  spec.add_dependency 'pry-doc', '>= 1.3.0'
   spec.add_dependency 'rainbow', '~> 3.0.0'
   spec.add_dependency 'terminal-table', '~> 1.8.0'
   spec.add_dependency 'table_print', '~> 1.5.6'
-  spec.add_dependency 'roo', '~> 2.8.3'
-  spec.add_dependency 'caxlsx', '~> 3.0.2'
+  spec.add_dependency 'roo', '~> 2.9.0'
+  spec.add_dependency 'caxlsx', '~> 3.3.0'
   spec.add_dependency 'ransack', '>= 3.2.1'
 end
