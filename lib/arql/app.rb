@@ -49,7 +49,7 @@ module Arql
     def load_initializer!
       return unless effective_config[:initializer]
       initializer_file = File.expand_path(effective_config[:initializer])
-      unless File.exists?(initializer_file)
+      unless File.exist?(initializer_file)
         STDERR.puts "Specified initializer file not found, #{effective_config[:initializer]}"
         exit(1)
       end
