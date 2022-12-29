@@ -114,7 +114,7 @@ module Arql
           tables.each do |table_name|
             table_comment = comments[table_name]
             primary_keys[table_name].tap do |pkey|
-              table_name.camelize.tap do |const_name|
+              table_name.send(@@classify_method).tap do |const_name|
                 const_name = 'Modul' if const_name == 'Module'
                 const_name = 'Clazz' if const_name == 'Class'
                 Class.new(::ArqlModel) do
@@ -172,6 +172,11 @@ module Arql
     def initialize(options)
       @@options = options
       @@models = []
+      @@classify_method = if @@options[:singularized_table_names]
+                            :camelize
+                          else
+                            :classify
+                          end
       ActiveRecord::Base.connection.tap do |conn|
         Object.const_set('ArqlModel', Class.new(ActiveRecord::Base) do
                            include ::Arql::Concerns::TableDataDefinition
@@ -203,7 +208,7 @@ module Arql
         tables.each do |table_name|
           table_comment = comments[table_name]
           primary_keys[table_name].tap do |pkey|
-            table_name.camelize.tap do |const_name|
+            table_name.send(@@classify_method).tap do |const_name|
               const_name = 'Modul' if const_name == 'Module'
               const_name = 'Clazz' if const_name == 'Class'
               Class.new(::ArqlModel) do

@@ -42,6 +42,7 @@ GEM
     composite_primary_keys (14.0.4)
       activerecord (~> 7.0.2)
     concurrent-ruby (1.1.10)
+    gem-release (2.2.2)
     htmlentities (4.3.4)
     i18n (1.12.0)
       concurrent-ruby (~> 1.0)
@@ -97,7 +98,8 @@ PLATFORMS
 
 DEPENDENCIES
   arql!
+  gem-release (~> 2.2.2)
   rake (~> 12.0)
 
 BUNDLED WITH
-   2.2.3
+   2.4.1

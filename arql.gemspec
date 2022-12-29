@@ -42,4 +42,5 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'roo', '~> 2.9.0'
   spec.add_dependency 'caxlsx', '~> 3.3.0'
   spec.add_dependency 'ransack', '>= 3.2.1'
+  spec.add_development_dependency "gem-release", "~> 2.2.2"
 end
