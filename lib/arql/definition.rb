@@ -5,9 +5,9 @@ module Arql
   module Extension
     extend ActiveSupport::Concern
 
-    def t
+    def t(**options)
       puts Terminal::Table.new { |t|
-        v.each { |row| t << (row || :separator) }
+        v(**options).each { |row| t << (row || :separator) }
       }
     end
 
@@ -20,12 +20,17 @@ module Arql
       end
     end
 
-    def v
+    def v(**options)
       t = []
       t << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
       t << nil
+      compact_mode = options[:compact] || false
       self.class.connection.columns(self.class.table_name).each do |column|
-        t << [column.name, read_attribute(column.name), column.sql_type, column.comment || '']
+        value = read_attribute(column.name)
+        if compact_mode && value.blank?
+          next
+        end
+        t << [column.name, value, column.sql_type, column.comment || '']
       end
       t
     end

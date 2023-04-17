@@ -35,7 +35,7 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'net-ssh-gateway', '~> 2.0.0'
   spec.add_dependency 'pry', '~> 0.14.1'
   spec.add_dependency 'pry-byebug', '~> 3.10.1'
-  spec.add_dependency 'pry-doc', '>= 1.3.0'
+  spec.add_dependency 'pry-doc', '>= 1.4.0'
   spec.add_dependency 'rainbow', '~> 3.0.0'
   spec.add_dependency 'terminal-table', '~> 1.8.0'
   spec.add_dependency 'table_print', '~> 1.5.6'

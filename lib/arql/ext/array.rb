@@ -27,6 +27,9 @@ class Array
           attrs -= [options[:except]].flatten
         end
       end
+      # if options[:compact]
+      #   attrs = attrs.select { |e| any { |r| r.attributes[e.to_s]&.present? } }
+      # end
       puts Terminal::Table.new { |t|
         t << attrs
         t << :separator
@@ -36,7 +39,7 @@ class Array
       }
     else
       table = Terminal::Table.new { |t|
-        v.each { |row| t << (row || :separator)}
+        v(**options).each { |row| t << (row || :separator)}
       }.to_s
 
       terminal_width = `tput cols`.to_i
@@ -77,23 +80,31 @@ class Array
     nil
   end
 
-  def v
+  def v(**options)
     return self unless present?
     t = []
     if map(&:class).uniq.size == 1
       if first.is_a?(ActiveRecord::Base)
-        t << first.attribute_names
+        attribute_names = first.attribute_names
+        if options[:compact]
+          attribute_names = attribute_names.select { |e| any? { |r| r.attributes[e]&.present? } }
+        end
+        t << attribute_names
         t << nil
         each do |e|
-          t << e.attributes.values_at(*first.attribute_names).map(&:as_json)
+          t << e.attributes.values_at(*attribute_names).map(&:as_json)
         end
       elsif first.is_a?(Array)
         t = map { |a| a.map(&:as_json) }
       elsif first.is_a?(Hash) || first.is_a?(ActiveSupport::HashWithIndifferentAccess)
-        t << first.keys
+        keys = first.keys
+        if options[:compact]
+          keys = keys.select { |e| any? { |r| r[e]&.present? } }
+        end
+        t << keys
         t << nil
         each do |e|
-          t << e.values_at(*first.keys).map(&:as_json)
+          t << e.values_at(*keys).map(&:as_json)
         end
       else
         return self
