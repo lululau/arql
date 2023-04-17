@@ -12,7 +12,7 @@ class Hash
           end
 
           if sheet_data.is_a?(Array)
-            if sheet_data.size > 0 && sheet_data.first.is_a?(ActiveModel::Base)
+            if sheet_data.size > 0 && sheet_data.first.is_a?(ActiveRecord::Base)
               fields = sheet_data.first.attributes.keys
               sheet.add_row(fields, types: [:string] * fields.size)
               sheet_data.each do |row|

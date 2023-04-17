@@ -1,5 +1,6 @@
 require 'arql/ext/object'
 require 'arql/ext/array'
+require 'arql/ext/hash'
 require 'arql/ext/time'
 require 'arql/ext/string'
 require 'arql/ext/kernel'
