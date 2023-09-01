@@ -50,4 +50,13 @@ class String
       raise "File not found: #{self}"
     end
   end
+
+  def vd
+    if File.file?(File.expand_path(self))
+      system "vd '#{File.expand_path(self)}'"
+      print "\033[5 q"
+    else
+      raise "File not found: #{self}"
+    end
+  end
 end
