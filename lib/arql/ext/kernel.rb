@@ -109,4 +109,8 @@ module Kernel
     end
   end
 
+  def parse_json(filename)
+    JSON.parse(IO.read(File.expand_path(filename)))
+  end
+
 end
