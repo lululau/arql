@@ -1,4 +1,5 @@
 require 'arql/vd'
+require 'youplot'
 
 class Array
   def to_insert_sql(batch_size=500)
@@ -175,5 +176,48 @@ class Array
       end
     end
     {size: size, file: File.expand_path(filename)}
+  end
+
+  %i[bar barplot countplot hist histo line lineplot lines lineplots scatter density box boxplot].each do |type|
+    define_method(type) do |*args|
+      plot_backend = YouPlot::Backends::UnicodePlot
+      params = Struct.new(:title, :width, :height, :border, :margin, :padding, :color, :xlabel,
+          :ylabel, :labels, :symbol, :xscale, :nbins, :closed, :canvas, :xlim, :ylim, :grid, :name) do
+        def to_hc
+          {}
+        end
+      end.new
+      fmt = 'xyy'
+      raw_data = map do |e|
+        if e.is_a?(Array)
+          e
+        else
+          [e]
+        end
+      end
+      transposed = Array.new(raw_data.map(&:length).max) { |i| raw_data.map { |e| e[i] } }
+      data = Struct.new(:headers, :series).new(nil, transposed)
+      plot = case type
+        when :bar, :barplot
+          plot_backend.barplot(data, params, fmt)
+        when :countplot
+          plot_backend.barplot(data, params, count: true, reverse: false)
+        when :hist, :histo
+          plot_backend.histogram(data, params)
+        when :line, :lineplot
+          plot_backend.line(data, params, fmt)
+        when :lines, :lineplots
+          plot_backend.lines(data, params, fmt)
+        when :scatter
+          plot_backend.scatter(data, params, fmt)
+        when :density
+          plot_backend.density(data, params, fmt)
+        when :box, :boxplot
+          plot_backend.boxplot(data, params)
+        else
+          raise "unrecognized plot_type: #{type}"
+        end
+      plot.render(STDOUT)
+    end
   end
 end

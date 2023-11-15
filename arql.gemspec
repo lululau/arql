@@ -25,7 +25,7 @@ Gem::Specification.new do |spec|
 
   spec.add_dependency 'mysql2', '~> 0.5.4'
   # spec.add_dependency 'pg', '>= 0.18', '< 2.0'
-  spec.add_dependency 'sqlite3', '~> 1.5.4'
+  spec.add_dependency 'sqlite3', '~> 1.6.8'
   # spec.add_dependency 'activerecord-sqlserver-adapter'
   # spec.add_dependency 'activerecord-oracle_enhanced-adapter'
   spec.add_dependency 'activerecord', '>= 6.1.5', '< 7.1.0'
@@ -41,6 +41,8 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'table_print', '~> 1.5.6'
   spec.add_dependency 'roo', '~> 2.9.0'
   spec.add_dependency 'caxlsx', '~> 3.3.0'
-  spec.add_dependency 'ransack', '>= 3.2.1'
+  spec.add_dependency 'ransack', '~> 3.2.1'
+  spec.add_dependency 'youplot', '~> 0.4.5'
+  spec.add_dependency 'tty-tree', '~> 0.4.0'
   spec.add_development_dependency "gem-release", "~> 2.2.2"
 end
