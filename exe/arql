@@ -1,5 +1,7 @@
 #!/usr/bin/env ruby
 
+ENV['RAILS_DISABLE_DEPRECATED_TO_S_CONVERSION'] = 'true'
+
 ArqlSetsidWrrapper = File.dirname(File.absolute_path(__FILE__)) + '/arql_setsid_wrapper'
 
 require "arql"
