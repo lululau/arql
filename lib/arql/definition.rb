@@ -216,6 +216,10 @@ module Arql
             table_name.send(@@classify_method).tap do |const_name|
               const_name = 'Modul' if const_name == 'Module'
               const_name = 'Clazz' if const_name == 'Class'
+              if const_name !~ /^[A-Z][A-Za-z0-9_]*$/
+                puts "Invalid class name: #{const_name}, skipped."
+                next
+              end
               Class.new(::ArqlModel) do
                 include Arql::Extension
                 if pkey.is_a?(Array) && pkey.size > 1
