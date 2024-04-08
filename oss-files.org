@@ -1,0 +1,163 @@
+* Download and Preview Files in OSS
+
+  Some systems use cloud storage services to store file data in the system and store the key of the file on OSS in the database. We hope to be able to download and view these files directly in Arql.
+
+** First you need to install and configure =rclone= tool
+
+   macOS example:
+
+   #+BEGIN_EXAMPLE
+    brew install rclone
+   #+END_EXAMPLE
+
+
+** Configure rclone
+   
+   Add the OSS configuration used by the system to the =~/.config/rclone/rclone.conf= file, for example:
+
+   #+BEGIN_EXAMPLE
+     [my_system]
+     type = s3
+     provider = Alibaba
+     env_auth = false
+     access_key_id = LTAxuiwqsayuuyea
+     secret_access_key = sauiqwYUwqhjsdayuwehjkwehjwehj
+     endpoint = oss-cn-beijing.aliyuncs.com
+     acl = private
+     storage_class = STANDARD
+   #+END_EXAMPLE
+
+
+** Add configuration in =~/.arql.d/init.yaml=
+
+    #+BEGIN_SRC yaml
+      dev:
+        created_at: ["create_time", "gmt_created"]
+        updated_at: ["update_time", "gmt_modified"]
+        host: db.dev.com
+        port: 3306
+        username: admin
+        password: 123456
+        database: dev_db
+        rclone_name: "my_system"
+        oss_bucket: "my_system_dev_bucket"
+      
+      prod:
+        created_at: ["create_time", "gmt_created"]
+        updated_at: ["update_time", "gmt_modified"]
+        host: db.prod.com
+        port: 3306
+        username: admin
+        password: 123456
+        database: prod_db
+        rclone_name: "my_system"
+        oss_bucket: "my_system_prod_bucket"
+    #+END_SRC
+
+
+** Create a file =~/.arql.d/oss.rb=
+
+       #+BEGIN_SRC ruby
+     class OSS
+       def pry_source_location; end
+     
+       attr_accessor :path, :bucket
+     
+       def initialize(path, bucket: nil)
+         @path = path
+         unless bucket
+           bucket = Arql::App.config['oss_bucket']
+         end
+         @bucket = bucket
+       end
+     
+       def rclone_name
+         Arql::App.config['rclone_name']
+       end
+     
+       def info
+         `rclone lsl #{rclone_name}:#{bucket}/#{path}`
+       end
+     
+       def download(dir = nil, keep_structure = false)
+         dir = File.expand_path(dir) if dir
+         dir ||= Dir.mktmpdir('arql-attachment-')
+         if keep_structure
+           dest_dir = dir + '/' + File.dirname(path)
+           FileUtils.mkdir_p(dest_dir)
+           system <<~EOF
+           rclone copy #{rclone_name}:#{bucket}/#{path} #{dest_dir}/
+           EOF
+           dest_dir + '/' + File.basename(path)
+         else
+           system <<~EOF
+           rclone copy #{rclone_name}:#{bucket}/#{path} #{dir}/
+           EOF
+           dir + '/' + File.basename(path)
+         end
+       end
+     
+       def copy(dest_name, dest_bucket)
+         path_prefix = File.dirname(path)
+         system "rclone copy -P #{rclone_name}:#{bucket}/#{path} #{dest_name}:#{dest_bucket}/#{path_prefix}/"
+       end
+     
+       def cat
+         `rclone cat #{rclone_name}:#{bucket}/#{path}`
+       end
+     
+       def to_rclone_url
+         "#{rclone_name}:#{bucket}/#{path}"
+       end
+     
+       def open
+         file = download
+         system <<~EOF
+         open #{file}
+         EOF
+         file
+       end
+     
+       def preview
+         file = download
+         system <<~EOF
+         qlmanage -p #{file} &> /dev/null
+         EOF
+         file
+       end
+     
+       def emacs_open
+         file = download
+         system <<~EOF
+         emacsclient -q --eval "(switch-to-buffer-other-window (current-buffer))" &> /dev/null
+         emacsclient -n '#{file}'
+         EOF
+         file
+       end
+     end
+     
+     class String
+       def oss(bucket: nil)
+         OSS.new(self, bucket: bucket)
+       end
+     end
+   #+END_SRC
+
+
+** Import this file in =~/.arql.d/init.rb=
+
+    #+BEGIN_SRC ruby
+      load(File.absolute_path(File.dirname(__FILE__) + "/oss.rb"))
+    #+END_SRC
+
+** Usage
+
+
+    Assuming that the user table has an avatar field that stores the key of the user's avatar on OSS, we can view and download the avatar like this:
+  
+      #+BEGIN_SRC ruby
+        User.first.avatar.oss.preview  # Preview using macOS Quick Look
+        User.first.avatar.oss.download  # Download to a temporary directory and return the file path
+        User.first.avatar.oss.open  # Download to a temporary directory and open with the system (macOS) default program
+        User.first.avatar.oss.cat  # Output file content directly
+      #+END_SRC

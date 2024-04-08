@@ -1,0 +1,33 @@
+* 将不同环境的初始化代码放在不同的文件中
+
+  配置文件中往往有多个数据库的多个环境配置，这时候可以使用这里的方法，将不同环境的初始化代码放在不同的文件中来避免冲突。
+
+  假设配置文件中配置了 4 个数据库环境：
+
+  + apollo.dev
+  + apollo.prod
+  + space.dev
+  + space.prod
+
+  那么可以在 =~/.arql.d/= 目录下创建以下文件：
+
+  + apollo.rb
+  + space.rb
+
+  在 =apollo.rb= 文件中放置 apollo 项目的初始化代码; 在 =space.rb= 文件中放置 space 项目的初始化代码。
+
+  然后在 =~/.arql.d/init.eb= 文件中写入以下代码：
+
+  #+BEGIN_SRC ruby
+    ["apollo", "space"].each do |project|
+      if Arql::App.env.try { |e| e.include?(project + ".") }
+        load(File.absolute_path(File.dirname(__FILE__) + "/#{project}.rb"))
+        break
+      end
+    end
+  #+END_SRC
+
+  这样，当执行 =arql -e apollo.dev= 或 =arql =e apollo.prod= 时，就会加载 =apollo.rb= 文件中的初始化代码；当执行 =arql
+  -e space.dev= 或 =arql -e space.prod= 时，就会加载 =space.rb= 文件中的初始化代码。
+
+  

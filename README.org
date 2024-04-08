@@ -1,0 +1,1170 @@
+* Arql
+
+  [[./README-zh_CN.org][中文]]
+
+  Arql is a simple utility gem that combines Rails ActiveRecord with Pry and adds useful Pry commands. It can
+  automatically define model classes based on database table schema. If you are a Ruby guy, you can use this gem
+  as your database query tool.
+
+** Pre-requisite
+
+   + Ruby >= 2.6.0
+   + For different types of databases, you need to install the corresponding database adapter or client binary library:
+     - MySQL: Depending on your operating system, you may need to install: =libmariadb-dev=, =libmysqlclient-dev=, =mysql-devel=
+       =default-libmysqlclient-dev= ; see the software package guide for your distribution to find the specific package; or refer to [[https://github.com/brianmario/mysql2][mysql2 doc]]
+     - SQLite3: No additional libraries need to be installed
+     - PostgreSQL: ~gem install pg~
+     - Oracle: ~gem install activerecord-oracle_enhanced-adapter~
+     - SQL Server: ~gem install activerecord-sqlserver-adapter~
+
+** Installation
+
+   Run the following command to install the gem:
+
+   #+begin_example
+   $ gem install arql
+   #+end_example
+
+   Try using sudo if you encounter system permission issues:
+
+   #+begin_example
+   $ sudo gem install arql
+   #+end_example
+
+** Usage
+
+*** CLI options
+
+    #+begin_example
+    Usage: arql [options] [ruby file]
+
+      If neither [ruby file] nor -E option is specified, and STDIN is a tty, a Pry REPL will be started,
+      otherwise the specified ruby file or -E option value or ruby code read from STDIN will be executed,
+      and the REPL will not be started
+
+        -c, --conf=CONFIG_FILE           Specify the configuration file, default is $HOME/.arql.yml or $HOME/.arql.d/init.yml
+        -i, --initializer=INITIALIZER    Specify the initializer Ruby file, default is $HOME/.arql.rb or $HOME/.arql.d/init.rb
+        -e, --env=ENVIRON                Specify the configuration environment
+        -a, --db-adapter=DB_ADAPTER      Specify the database adapter, default is sqlite3
+        -h, --db-host=DB_HOST            Specify the database host
+        -p, --db-port=DB_PORT            Specify the database port
+        -d, --db-name=DB_NAME            Specify the database name
+        -u, --db-user=DB_USER            Specify the database user
+        -P, --db-password=DB_PASSWORD    Specify the database password
+        -n, --db-encoding=DB_ENCODING    Specify the database encoding, default is utf8
+        -o, --db-pool=DB_POOL            Specify the database connection pool size, default is 5
+        -H, --ssh-host=SSH_HOST          Specify the SSH host
+        -O, --ssh-port=SSH_PORT          Specify the SSH port
+        -U, --ssh-user=SSH_USER          Specify the SSH user
+        -W, --ssh-password=SSH_PASSWORD  Specify the SSH password
+        -L, --ssh-local-port=SSH_LOCAL_PORT  Specify the local SSH proxy port
+        -E, --eval=CODE                  Evaluate code
+        -S, --show-sql                   Print SQL on STDOUT
+        -w, --write-sql=OUTPUT           Write SQL to OUTPUT file
+        -A, --append-sql=OUTPUT          Append SQL to OUTPUT file
+            --help                      Print this message
+    #+end_example
+
+**** =-c, --config=CONFIG_FILE=
+
+     Specify the configuration file location, default is =$HOME/.arql.yml= or =$HOME/.arql.d/init.yml=. The configuration file
+     is usually the same as the Rails database configuration file, but with some additional configuration options, such as the
+     =ssh= option, etc. Refer to the =Configuration file= section.
+
+**** =-i, --initializer=INITIALIZER=
+
+     Specify a Ruby source file, Arql executes the code in this file after defining the ActiveRecord model class, default is
+     =$HOME/.arql.rb= or =$HOME/.arql.d/init.rb=. You can add methods and association definitions for ActiveRecord model
+     classes in this file.
+
+**** =-e, --env=ENVIRON=
+
+     Specify an environment name in the configuration file.
+
+**** =-E, --eval=CODE=
+
+     Specify a Ruby code snippet, if this option is specified, the Pry REPL will not be started.
+
+**** =-S, --show-sql=
+
+     arql does not display SQL logs by default, use this option to turn it on.
+
+**** =-w, --write-sql=OUTPUT=
+
+     You can also use this option to let arql write SQL logs to a file.
+
+**** =-A, --append-sql-OUTOUT=
+
+     Similar to =-w=, but uses append writing, does not truncate the existing file.
+
+**** Database options
+
+     The options described in this section are usually configured in the configuration file. These options are just shortcuts
+     for the corresponding configuration items in the configuration file, so that certain configuration items can be directly
+     modified in the CLI.
+
+***** -a, --db-adapter=DB_ADAPTER
+
+      Specify the database adapter, available values:
+
+      -  =mysql2=
+      -  =postgresql=
+      -  =sqlite3=
+      -  =sqlserver=
+      -  =oracle_enhanced=
+
+***** -h, --db-host=DB_HOST
+
+      Specify the database host
+
+***** -p, --db-port=DB_PORT
+
+      Specify the database port
+
+***** -d, --db-name=DB_NAME
+
+      Specify the database name
+
+***** -u, --db-user=DB_USER
+
+      Specify the database username
+
+***** -P, --db-password=DB_PASSWORD
+
+      Specify the database password
+
+***** -n, --db-encoding=DB_ENCODING
+
+      Specify the database character encoding, default is =utf8=
+
+***** -o, --db-pool=DB_POOL
+
+      Specify the database connection pool size, default is =5=
+
+***** -H, --ssh-host=SSH_HOST
+
+      Specify the SSH host, when the SSH related options are specified, arql will establish an SSH tunnel and connect to the
+      database using the SSH tunnel.
+
+***** -O, --ssh-port=SSH_PORT
+
+      Specify the SSH port
+
+***** -U, --ssh-user=SSH_USER
+
+      Specify the SSH username
+
+***** -W, --ssh-password=SSH_PASSWORD
+
+      Specify the SSH password
+
+***** -L, --ssh-local-port=SSH_LOCAL_PORT
+
+      Specify the SSH local port, default is a /random/ port
+
+*** Configuration file
+
+    The path of the configuration file defaults to =$HOME/.arql.yml= or =$HOME/.arql.d/init.yml=. The configuration file is
+    usually the same as the Rails database configuration file, but there are some additional configuration options:
+
+    1. =created_at= : An array of custom column names containing the ActiveRecord =created_at= field, default is =created_at=, if specified, the current timestamp will be used to fill the value of the column when created
+    2. =updated_at= : An array of custom column names containing the ActiveRecord =updated_at= field, default is =updated_at=, if specified, the current timestamp will be used to fill the value of the column when updated
+    3. =ssh.host= : ssh host, you can use the host name in the =ssh_config= file, or directly use the IP address or host name
+    4. =ssh.port= : ssh port, default is =22=
+    5. =ssh.user= : ssh username
+    6. =ssh.password= : ssh password
+    7. =ssh.local_port= : ssh local port
+    8. =singularized_table_names=: Whether to use singular table names, default is =false=, if =false=, the =students= table will be defined as the =Student= model, if =true=, the =students= table will be defined as the =Students= model
+
+**** Example
+
+     #+begin_example
+     default: &default
+       adapter: mysql2
+       encoding: utf8
+       created_at: ["gmt_created"]
+       updated_at: ["gmt_modified"]
+       singularized_table_names: true
+
+     local:
+       <<: *default
+       username: root
+       database: blog
+       password:
+       socket: /tmp/mysql.sock
+
+     dev:
+       <<: *default
+       host: devdb.mycompany.com
+       port: 3306
+       username: root
+       password: 123456
+       database: blog
+       ssh:
+         host: dev.mycompany.com
+         port: 22
+         user: deploy
+         password: 12345678
+         local_port: 3307
+     #+end_example
+
+
+     The example defines a common configuration item =default=, and two specific database environments =local= and =dev=. =local=
+     and =dev= inherit the configuration items of =default= in the way of =<<: *default=.
+
+
+     When the command =arql -e dev= is executed, arql will use the =dev= configuration in the configuration file; when the command
+     =arql -e local= is executed, arql will use the =local= configuration in the configuration file.
+
+
+     The =dev= environment uses an SSH tunnel. When connecting to the =devdb.mycompany.com= database, an SSH tunnel will be established
+     to =dev.mycompany.com= first, and then connected to the database through the SSH tunnel.
+
+*** Use Arql as REPL
+
+    If neither =[ruby file]= nor the =-E= option is specified, and STDIN is a =tty=, arql will start a Pry REPL. For example, execute:
+
+    #+BEGIN_EXAMPLE
+      arql -e dev
+    #+END_EXAMPLE
+
+
+    Arql provides some Pry commands:
+
+**** =info=
+
+     The =info= command prints the current database connection information and SSH proxy information, for example:
+
+     #+begin_example
+     Database Connection Information:
+         Host:
+         Port:
+         Username:  root
+         Password:
+         Database:  test
+         Adapter:   mysql2
+         Encoding:  utf8
+         Pool Size: 5
+     #+end_example
+
+**** =m= or =l=
+
+     The =m= (or =l=) command prints all table names and their corresponding model class names and abbreviated class names, for example:
+
+     #+begin_example
+    +--------------------+------------------+------+----------------+
+    | Table Name         | Model Class      | Abbr | Comment        |
+    +--------------------+------------------+------+----------------+
+    | post               | Post             | P    | Posts          |
+    | org                | Org              | O    | Orginations    |
+    | user_org           | UserOrg          | UO   |                |
+    | student            | Student          | S    | Students       |
+    | course             | Course           | C    |                |
+    | score              | Score            | S2   |                |
+    | users              | Users            | U    |                |
+    | posts              | Posts            | P2   |                |
+    | authors            | Authors          | A    |                |
+    +--------------------+------------------+------+----------------+
+     #+end_example
+
+     Where:
+
+     - =Table Name= : Table name
+     - =Model Class= : Model class name
+     - =Abbr= : Abbreviated class name
+     - =Comment= : Comment
+
+       The =m= / =l= command can also accept a parameter to filter the list by table name or table comment, for example:
+
+       =m perm= will only list tables that contain =perm= in the table name or table comment; if you want to use regular expressions to match,
+       you can use =m /perm/i= to match.
+
+**** =t=
+
+     The =t= command accepts a table name or model class name as a parameter and prints the table definition information, for example:
+
+     Executing the =t Person= command will print the definition information of the =person= table:
+
+     #+begin_example
+     Table: person
+     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
+     | PK | Name       | SQL Type         | Ruby Type | Limit | Precision | Scale | Default | Nullable | Comment |
+     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
+     | Y  | id         | int(11) unsigned | integer   | 4     |           |       |         | false    |         |
+     |    | name       | varchar(64)      | string    | 64    |           |       |         | true     |         |
+     |    | age        | int(11)          | integer   | 4     |           |       |         | true     |         |
+     |    | gender     | int(4)           | integer   | 4     |           |       |         | true     |         |
+     |    | grade      | int(4)           | integer   | 4     |           |       |         | true     |         |
+     |    | blood_type | varchar(4)       | string    | 4     |           |       |         | true     |         |
+     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
+     #+end_example
+
+     In addition, =t= is also a class method of the model class. Executing =Person.t= will also print the above information.
+
+
+     Where:
+
+     - =PK= : Whether it is a primary key
+     - =Name= : Column name
+     - =SQL Type= : Database type
+     - =Ruby Type= : Ruby type
+     - =Limit= : Length limit
+     - =Precision= : Precision
+     - =Scale= : Number of decimal places
+     - =Default= : Default value
+     - =Nullable= : Whether it can be empty
+     - =Comment= : Comment
+
+**** =vd=
+
+
+     The =t= command prints the table definition information in the terminal in the form of a table. The disadvantage
+     is that if the number of columns in the table is too large, it will cause the table to wrap, which is not
+     convenient to view. =vd= (visidata) is a terminal data analysis tool written in Python, which can print the table
+     definition information in the terminal in the form of a table, but supports horizontal scrolling, which is
+     convenient for viewing.
+
+     If you want to use the =vd= command of Arql, you need to install visidata first:
+
+     #+begin_src sh
+       pipx install visidata
+     #+end_src
+
+
+     The =vd= command and usage are basically the same as the =t= command. In addition, objects such as =Array= /
+     =ActiveRecord::Base= can also use the =vd= method.
+
+**** =show-sql= / =hide-sql=
+
+     This pair of commands can switch the display of SQL logs in the Pry REPL.
+
+     By default, SQL logs are not displayed:
+
+     #+begin_example
+     ARQL@demo247(main) [2] ❯ Student.count
+     => 0
+     #+end_example
+
+     After opening the SQL log, the SQL statement executed each time will be displayed:
+
+     #+begin_example
+     ARQL@demo247(main) [3] ❯ show-sql
+     ARQL@demo247(main) [4] ❯ Student.count
+     D, [2024-04-07T13:31:32.053903 #20440] DEBUG -- :   Student Count (29.8ms)  SELECT COUNT(*) FROM `student`
+     => 0
+     #+end_example
+
+**** =reconnect=
+
+     The =reconnect= command is used to reconnect the current database connection. When the connection is disconnected
+     due to network reasons, you can use this command to reconnect. When reconnecting, the objects in the current Pry
+     session will not be lost. =reconnect= first checks whether the current connection is still valid. If it is valid,
+     it will not reconnect. If the validity judgment of =reconnect= for the connection is wrong, you can use the
+     =reconnect!= command to force a reconnection.
+
+**** =redefine=
+     The =redefine= command is used to redefine the ActiveRecord model class and regenerate the model class based on
+     the information of the database table. If you have added new relationship definitions in =init.rb= and want the
+     new definitions to take effect in the current Pry session, you can use the =redefine= command.
+
+**** Sandbox
+
+     The =sandbox-enter= command is used to enable sandbox mode. In sandbox mode, all database operations are executed
+     in a transaction, and the transaction is not automatically committed. You need to manually commit or roll back.
+
+     1. Enter sandbox mode:
+        #+begin_example
+          ARQL@demo247(main) [6] ❯ sandbox-enter
+          ARQL@demo247 [sandbox] (main) [7] ❯ 
+        #+end_example
+     2. Quit sandbox mode:
+        #+begin_example
+          ARQL@demo247 [sandbox] (main) [7] ❯ sandbox-quit
+          begin_transaction callbacks removed.
+          You still have open 1 transactions open, don't forget commit or rollback them.
+        #+end_example
+     3. Commit the transaction:
+        #+begin_example
+          ARQL@demo247(main) [7] ❯ $C.commit_transaction
+        #+end_example
+     4. Roll back the transaction:
+        #+begin_example
+          ARQL@demo247(main) [7] ❯ $C.rollback_transaction
+        #+end_example
+
+*** Use Arql as Code Interpreter
+
+
+    If a Ruby file is specified as a command-line parameter, or the =-E= option is used, or STDIN is not a tty, Arql
+    will not start Pry, but will directly execute the specified file or code snippet (or read code from standard
+    input). Before executing the code snippet, the model class definition will be loaded first. You can think of this
+    usage as similar to the =runner= subcommand of =rails=.
+
+**** Use =-E= option
+
+     The =-E= option can be used to execute code snippets directly without starting Pry:
+
+     #+begin_example
+     $ arql -e dev -E 'puts Person.count'
+     #+end_example
+
+**** Pass a Ruby file as a command-line parameter
+
+     By specifying a Ruby file as a command-line parameter, you can directly execute the code in the Ruby file:
+
+     =test.rb=:
+
+     #+BEGIN_SRC ruby
+       puts Person.count
+     #+END_SRC
+
+     #+begin_example
+     $ arql -e dev test.rb
+     #+end_example
+
+**** Read code from standard input
+
+     Reading code from standard input, you can directly execute code snippets:
+
+     #+begin_example
+     $ echo 'puts Person.count' | arql -e dev
+     #+end_example
+
+*** Additional extensions
+**** =to_insert_sql= / =to_upsert_sql=
+
+
+     You can call the =to_insert_sql= / =to_upsert_sql= method on any ActiveRecord model instance to get the insert or
+     update SQL statement for the object. These two methods can also be called on an array object containing ActiveRecord
+     model instance objects.
+
+     #+begin_example
+     ARQL ❯ Person.all.to_a.to_insert_sql
+     => "INSERT INTO `person` (`id`,`name`,`age`,`gender`,`grade`,`blood_type`) VALUES (1, 'Jack', 30, NULL, NULL, NULL), (2, 'Jack', 11, 1, NULL, NULL), (3, 'Jack', 12, 1, NULL, NULL), (4, 'Jack', 30, 1, NULL, NULL), (5, 'Jack', 12, 2, NULL, NULL), (6, 'Jack', 2, 2, 2, NULL), (7, 'Jack', 3, 2, 2, NULL), (8, 'Jack', 30, 2, 2, 'AB'), (9, 'Jack', 30, 2, 2, 'AB'), (10, 'Jack', 30, 2, 2, 'AB'), (11, 'Jackson', 30, 2, 2, 'AB') ON DUPLICATE KEY UPDATE `id`=`id`;"
+     #+end_example
+
+**** =to_create_sql=
+
+     You can call the =to_create_sql= method on any ActiveRecord model class to get the create SQL statement for the table
+     corresponding to the model class.
+
+     #+begin_example
+     ARQL@demo247(main) [16] ❯ puts Post.to_create_sql
+     D, [2024-04-07T14:15:11.106693 #20440] DEBUG -- :   SQL (24.9ms)  show create table post
+     CREATE TABLE `post` (
+       `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+       `name` varchar(256) DEFAULT NULL,
+       `gender` varchar(256) DEFAULT NULL,
+       `phone` varchar(256) DEFAULT NULL,
+       `id_no` varchar(256) DEFAULT NULL,
+       `note` varchar(256) DEFAULT NULL,
+       `gmt_created` datetime NOT NULL COMMENT '创建时间',
+       `gmt_modified` datetime NOT NULL COMMENT '最后修改时间',
+       PRIMARY KEY (`id`),
+       KEY `index_post_on_name` (`name`)
+     ) ENGINE=InnoDB AUTO_INCREMENT=83 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci
+     #+end_example
+
+**** =t=
+
+     =t= can be called as a class method on an ActiveRecord model class, or as an instance method on an ActiveRecord model
+     instance object.
+
+     #+begin_example
+     ARQL ❯ Person.last.t
+     +----------------|-----------------|------------------|---------+
+     | Attribute Name | Attribute Value | SQL Type         | Comment |
+     +----------------|-----------------|------------------|---------+
+     | id             | 11              | int(11) unsigned |         |
+     | name           | Jackson         | varchar(64)      |         |
+     | age            | 30              | int(11)          |         |
+     | gender         | 2               | int(4)           |         |
+     | grade          | 2               | int(4)           |         |
+     | blood_type     | AB              | varchar(4)       |         |
+     +----------------|-----------------|------------------|---------+
+     #+end_example
+
+     The =t= method can accept the following two options:
+
+     + =:except= option, used to specify the attribute names that are not displayed. The value can be a string or a regular
+       #+BEGIN_EXAMPLE
+        Person.last.t(except: 'id')
+        Student.where(condition).t(except: /id|name/)
+       #+END_EXAMPLE
+     + =:compact= option, used to specify whether to display in compact mode. The value can be =true= or =false=. If compact
+       mode is enabled, columns with all NULL values will not be displayed. This is useful for viewing tables with sparse
+
+       #+BEGIN_EXAMPLE
+        Person.last.t(compact: true)
+        Student.where(condition).t(compact: false)
+       #+END_EXAMPLE
+
+**** =v=
+
+     The =v= method is used to integrate with Emacs org babel.
+
+***** =v= as instance method
+
+
+      Call the =v= method on any ActiveRecord model instance object to print an array. The first element of the array is
+      =['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']=, the second element is =nil=, and the remaining elements
+      are the attribute names and values of the object. In Emacs org-mode, if the =:result= type is =value= (the default), this
+      return value will be rendered as a beautiful table.
+
+      #+begin_example
+      ARQL ❯ Person.last.v
+      => [["Attribute Name", "Attribute Value", "SQL Type", "Comment"],
+       nil,
+       ["id", 11, "int(11) unsigned", ""],
+       ["name", "Jackson", "varchar(64)", ""],
+       ["age", 30, "int(11)", ""],
+       ["gender", 2, "int(4)", ""],
+       ["grade", 2, "int(4)", ""],
+       ["blood_type", "AB", "varchar(4)", ""]]
+      #+end_example
+
+***** Array containing only model instances
+
+      #+begin_example
+      ARQL ❯ Person.all.to_a.v
+      => [["id", "name", "age", "gender", "grade", "blood_type"],
+       nil,
+       [1, "Jack", 30, nil, nil, nil],
+       [2, "Jack", 11, 1, nil, nil],
+       [3, "Jack", 12, 1, nil, nil],
+       [4, "Jack", 30, 1, nil, nil],
+       [5, "Jack", 12, 2, nil, nil],
+       [6, "Jack", 2, 2, 2, nil],
+       [7, "Jack", 3, 2, 2, nil],
+       [8, "Jack", 30, 2, 2, "AB"],
+       [9, "Jack", 30, 2, 2, "AB"],
+       [10, "Jack", 30, 2, 2, "AB"],
+       [11, "Jackson", 30, 2, 2, "AB"]]
+      #+end_example
+
+***** Array containing only homogeneous Hash objects
+
+      #+begin_example
+      ARQL ❯ arr = [{name: 'Jack', age: 10}, {name: 'Lucy', age: 20}]
+      => [{:name=>"Jack", :age=>10}, {:name=>"Lucy", :age=>20}]
+      ARQL ❯ arr.v
+      => [[:name, :age], nil, ["Jack", 10], ["Lucy", 20]]
+      #+end_example
+
+**** =q=
+
+     #+begin_example
+     ARQL ❯ rs = q 'select count(0) from person;'
+     => #<ActiveRecord::Result:0x00007fd1f8026ad0 @column_types={}, @columns=["count(0)"], @hash_rows=nil, @rows=[[11]]>
+     ARQL ❯ rs.rows
+     => [[11]]
+     #+end_example
+
+**** JSON conversion and formatting
+
+     Call the =j= method on any object to get a JSON-formatted string, and call the =jj= method to get a formatted JSON string.
+
+     Use the =jp= method to print JSON and the =jjp= method to print formatted JSON.
+
+**** The =$C= Global Variables
+
+
+     Arql assigns the =ActiveRecord::Base.connection= object to the globally available =$C= global variable, which represents the
+
+     The =q= method mentioned above is actually the =$C.exec_query= method. Other methods of the =$C= object are also useful:
+
+***** Create Table
+      #+begin_example
+      ARQL ❯ $C.create_table :post, id: false, primary_key: :id do |t|
+      ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
+      ARQL ❯   t.column :name, :string, comment: '名称'
+      ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
+      ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
+      ARQL ❯ end
+      #+end_example
+
+      The =create_table= method is also added to the =Kernel= module, so you can also call the =create_table= method directly:
+
+      #+begin_example
+      ARQL ❯ create_table :post, id: false, primary_key: :id do |t|
+      ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
+      ARQL ❯   t.column :name, :string, comment: '名称'
+      ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
+      ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
+      ARQL ❯ end
+      #+end_example
+
+***** Add Column
+
+      #+begin_example
+      $C.add_column :post, :note, :string, comment: 'the note'
+      #+end_example
+
+      The =add_column= method is also added to the class methods of the model class, so you can also call the
+      =add_column= method directly on the model class:
+
+      #+begin_example
+      Post.add_column :note, :string, comment: 'the note'
+      #+end_example
+
+***** Change Column
+
+      #+begin_example
+      $C.change_column :post, :note, :text, comment: '备注'
+      #+end_example
+
+      The =change_column= method is also added to the class methods of the model class, so you can also call the
+      =change_column= method directly on the model class:
+
+      #+begin_example
+      Post.change_column :note, :text, comment: '备注'
+      #+end_example
+
+***** Remove Column
+
+      #+begin_example
+      $C.remove_column :post, :note
+      #+end_example
+
+      The =remove_column= method is also added to the class methods of the model class, so you can also call the
+      =remove_column= method directly on the model class:
+
+      #+begin_example
+      Post.remove_column :note
+      #+end_example
+
+***** Drop Table
+
+      #+begin_example
+      $C.drop_table :post
+      #+end_example
+
+      The =drop_table= method is also added to the class methods of the model class, so you can also call the
+      =drop_table= method directly on the model class:
+
+      #+begin_example
+      Post.drop_table
+      #+end_example
+
+***** Add Index
+
+      #+begin_example
+      ARQL ❯ $C.add_index :post, :name
+      ARQL ❯ $C.add_index(:accounts, [:branch_id, :party_id], unique: true, name: 'by_branch_party')
+      #+end_example
+
+      The =add_index= method is also added to the class methods of the model class, so you can also call the
+      =add_index= method directly on the model class:
+
+      #+begin_example
+      Post.add_index :name
+      Post.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
+      #+end_example
+
+**** Kernel Extensions
+
+     The functions under the =Kernel= module can be called directly like built-in functions without specifying the module name.
+     The following are the =Kernel= methods extended by Arql:
+
+     Pry has built-in =show-source= (alias =$= ) and =show-doc= (alias =?= ) commands to view the source code and documentation of methods. You can view the documentation of a method using =show-doc=. For example:
+
+
+     #+BEGIN_EXAMPLE
+      ARQL ❯ ? create_table
+     #+END_EXAMPLE
+
+
+***** =create_table=
+      #+BEGIN_EXAMPLE
+        create_table :post, id: false, primary_key: :id do |t|
+          t.column :id, :bigint, precison: 19, comment: 'ID'
+          t.column :name, :string, comment: '名称'
+          t.column :gmt_created, :datetime, comment: '创建时间'
+          t.column :gmt_modified, :datetime, comment: '最后修改时间'
+        end
+      #+END_EXAMPLE
+***** =create_join_table=
+      #+BEGIN_EXAMPLE
+        create_join_table :products, :categories do |t|
+          t.index :product_id
+          t.index :category_id
+        end
+      #+END_EXAMPLE
+***** =drop_table=
+      #+BEGIN_EXAMPLE
+        drop_table :post
+      #+END_EXAMPLE
+***** =drop_join_table=
+      #+BEGIN_EXAMPLE
+        drop_join_table :products, :categories
+      #+END_EXAMPLE
+***** =rename_table=
+      #+BEGIN_EXAMPLE
+        rename_table :post, :posts
+      #+END_EXAMPLE
+
+***** =print_tables=
+
+      Arql provides a =print_tables= method that exports information about all tables in the current database as:
+
+      + markdown table format:  ~print_tables(:md)~
+      + org-mode table format: ~print_tables(:org)~
+      + create table SQL: ~print_tables(:sql)~
+
+**** Model Class Methods Extensions
+
+     Arql adds some class methods to the model class for creating, modifying, and deleting columns, indexes, and other
+     operations on tables. These methods can be called directly on the model class without the need to call them
+     through an instance object of the =ActiveRecord::Migration= class.
+
+     Pry has built-in =show-source= (alias =$= ) and =show-doc= (alias =?= ) commands to view the source code and
+     documentation of methods. You can view the documentation of a method using =show-doc=. For example:
+
+     #+BEGIN_EXAMPLE
+      ARQL ❯ ? Student.add_column
+     #+END_EXAMPLE
+
+***** =add_column=
+      #+BEGIN_EXAMPLE
+        Student.add_column :note, :text, comment: '备注'
+      #+END_EXAMPLE
+
+***** =change_column=
+      #+BEGIN_EXAMPLE
+        Student.change_column :note, :string, comment: '备注'
+      #+END_EXAMPLE
+
+***** =remove_column=
+      #+BEGIN_EXAMPLE
+        Student.remove_column :note
+      #+END_EXAMPLE
+
+***** =add_index=
+      #+BEGIN_EXAMPLE
+        Student.add_index :name
+        Student.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
+      #+END_EXAMPLE
+
+***** =change_column_comment=
+      #+BEGIN_EXAMPLE
+        Student.change_column_comment :note, '备注'
+      #+END_EXAMPLE
+
+***** =change_column_default=
+      #+BEGIN_EXAMPLE
+        Student.change_column_default :note, '默认值'
+      #+END_EXAMPLE
+
+***** =rename_column=
+      #+BEGIN_EXAMPLE
+        Student.rename_column :note, :remark
+      #+END_EXAMPLE
+
+***** =rename_table=
+      #+BEGIN_EXAMPLE
+        Student.rename_table :seitou
+      #+END_EXAMPLE
+
+***** =change_table_comment=
+      #+BEGIN_EXAMPLE
+        Student.change_table_comment from: '', to: '学生表'
+      #+END_EXAMPLE
+
+***** =drop_table=
+      #+BEGIN_EXAMPLE
+        Student.drop_table
+      #+END_EXAMPLE
+
+***** =remove_index=
+      #+BEGIN_EXAMPLE
+        Student.remove_index :age
+        Student.remove_index name: 'by_branch_party'
+      #+END_EXAMPLE
+
+***** =table_comment=
+      #+BEGIN_EXAMPLE
+        Student.table_comment
+      #+END_EXAMPLE
+
+***** =indexes=
+      #+BEGIN_EXAMPLE
+        Student.indexes
+      #+END_EXAMPLE
+
+**** Read and Write Excel and CSV Files
+
+     Arql integrates two Excel libraries, =roo= and =caxlsx= to provide methods for parsing and generating Excel files.
+     Arql also provides methods for reading and writing CSV files.
+
+***** Parse Excel
+
+      Arql adds a =parse_excel= method to the =Kernel= module, which can be used to parse Excel files. For example:
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ parse_excel 'path/to/excel.xlsx'
+      #+END_EXAMPLE
+
+      You can use =~/= in the file path to represent the user's home directory, and Arql will automatically expand it.
+
+      You can also call the =parse_excel= method on a String object representing a file path:
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ 'path/to/excel.xlsx'.parse_excel
+      #+END_EXAMPLE
+
+      The =parse_excel= method returns a Hash object, where the key is the sheet name and the value is the data of the
+      sheet, which is a two-dimensional array. For example:
+
+      #+BEGIN_EXAMPLE
+        {
+          'Sheet1' => [
+            ['A1', 'B1', 'C1'],
+            ['A2', 'B2', 'C2'],
+            ['A3', 'B3', 'C3']
+          ],
+          'Sheet2' => [
+            ['A1', 'B1', 'C1'],
+            ['A2', 'B2', 'C2'],
+            ['A3', 'B3', 'C3']
+          ]
+        }
+      #+END_EXAMPLE
+
+***** Generate Excel
+
+      Arql adds a =write_excel= method to Hash / Array / ActiveRecord::Relation / ActiveRecord::Base objects, which can
+      be used to generate Excel files:
+
+
+****** Genrate Excel from =Hash= Object
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ obj.write_excel 'path/to/excel.xlsx'
+       #+END_EXAMPLE
+
+       =Hash#write_excel= requires that the key of the Hash object is the sheet name and the value is the data of the
+       sheet. The type of the value can be:
+
+       + An array, where the elements of the array can be:
+         + An array, representing a row of data
+         + A Hash object, representing a row of data, where the key is the column name and the value is the column value
+         + An =ActiveRecord::Base= object, representing a row of data
+       + A Hash object, which contains two key-value pairs:
+         + =:fields=, an array representing the column names
+         + =:data=, a two-dimensional array representing the data
+
+****** Generate Excel from =Array= Object
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ obj.write_excel 'path/to/excel.xlsx', :name, :age, :gender, sheet_name: '订单数据'
+       #+END_EXAMPLE
+
+       Where:
+
+       + =:name, :age, :gender= These parameters are column names. If not specified, the column names will be determined
+         based on the first element of the array:
+         - If the element is an ActiveRecord::Base object, all attribute names of the object (i.e., the database field
+           list) will be used as column names
+         - If the element is a Hash object, all keys of the Hash will be used as column names
+       + =sheet_name= Specifies the sheet name. If not specified, the default sheet name =Sheet1= will be used
+
+         Each element of the Array object represents a row of data. =Array#write_excel= requires that each element of the
+         Array object:
+
+         + An =ActiveRecord::Base= object
+         + A =Hash= object, representing a row of data, where the key is the column name and the value is the column value
+         + An array, representing a row of data
+
+****** Generate Excel from =ActiveRecord::Base= Object
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.find(123).write_excel 'path/to/excel.xlsx', sheet_name: '学生数据'
+       #+END_EXAMPLE
+
+       The =write_excel= method of =ActiveRecord::Base= actually wraps the =ActiveRecord::Base= object into an =Array= object with
+       only one element, and then calls the =write_excel= method of Array.
+
+****** Generate Excel from =ActiveRecord::Relation= Object
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.where(gender: 'M').write_excel 'path/to/excel.xlsx', sheet_name: '男学生'
+       #+END_EXAMPLE
+
+       The =write_excel= method of =ActiveRecord::Relation= actually converts the =ActiveRecord::Relation= object into an Array
+       object, and then calls the =write_excel= method of =Array=.
+
+***** Parse CSV
+
+      Arql provides the =parse_csv= method, which can be used to parse CSV files:
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ parse_csv 'path/to/csv.csv'
+      #+END_EXAMPLE
+
+
+      The =parse_csv= method returns a CSV object in the standard library.
+
+      =parse_csv= can have the following optional parameters:
+
+      - =encoding=, specifies the encoding of the CSV file, which is =UTF-16= (with BOM) by default
+      - =headers=, specifies whether to include the header, which is =false= by default
+      - =col_sep=, specifies the column separator, which is =\t= by default
+      - =row_sep=, specifies the row separator, which is =\r\n= by default
+
+
+      (The default values above are actually the configurations used by Microsoft Office Excel when saving CSV files)
+
+
+      You can also call the =parse_csv= method on a String object representing the file path:
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ 'path/to/csv.csv'.parse_csv
+      #+END_EXAMPLE
+
+***** Generate CSV
+
+      Arql adds the =write_csv= method to =Array= / =ActiveRecord::Relation= / =ActiveRecord::Base= objects, which can be used to
+      generate CSV files:
+
+****** Generate CSV from =Array= Object
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ obj.write_csv 'path/to/csv.csv', :name, :age, :gender, sheet_name: '订单数据'
+       #+END_EXAMPLE
+
+       The usage is similar to the write_excel method of =Array= objects.
+
+
+****** Generate CSV from =ActiveRecord::Base= Object
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.find(123).write_csv 'path/to/csv.csv', sheet_name: '学生数据'
+       #+END_EXAMPLE
+
+       The usage is similar to the =write_excel= method of =ActiveRecord::Base= objects.
+
+****** Generate CSV from =ActiveRecord::Relation= Object
+
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.where(gender: 'M').write_csv 'path/to/csv.csv', sheet_name: '男学生'
+       #+END_EXAMPLE
+
+
+       The usage is similar to the =write_excel= method of =ActiveRecord::Relation= objects.
+
+**** dump data from database
+
+     Note: Only MySQL databases are supported
+
+     Arql adds the =dump= method to =Array= / =ActiveRecord::Base= / =ActiveRecord::Relation= objects, which can be used to
+     export data to SQL files:
+
+
+***** Dump data from =Array= Object
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ obj.dump 'path/to/dump.sql', batch_size: 5000
+      #+END_EXAMPLE
+
+
+      Each element of the =Array= object must be an =ActiveRecord::Base= object
+
+      The =batch_size= parameter specifies the data queried in each batch, with a default value of 500
+
+***** Dump data from =ActiveRecord::Base= Object
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ Student.find(123).dump 'path/to/dump.sql', batch_size: 5000
+      #+END_EXAMPLE
+
+
+      The =dump= method of =ActiveRecord::Base= objects actually wraps the =ActiveRecord::Base= object into an =Array= object
+      with only one element, and then calls the =dump= method of =Array=.
+
+***** Dump data from =ActiveRecord::Relation= Object
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ Student.where(gender: 'M').dump 'path/to/dump.sql', batch_size: 5000
+      #+END_EXAMPLE
+
+
+      The =dump= method of =ActiveRecord::Relation= objects actually converts the =ActiveRecord::Relation= object into an =Array= object,
+      and then calls the =dump= method of Array.
+
+
+***** Use the =dump= class method of  =ActiveRecord::Base=
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ Student.dump 'path/to/dump.sql', no_create_table: false
+      #+END_EXAMPLE
+
+      This method will export all data in the Student table to the SQL file using the =mysqldump= command.
+
+      The =no_create_table= parameter specifies whether to include the create table statement in the SQL file, with a default value of =false=.
+
+
+
+***** Use the dump method on the global connection object =$C=
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ $C.dump 'path/to/dump.sql', no_create_db: false
+      #+END_EXAMPLE
+
+
+      This method will export the data of all tables in the current database to the SQL file using the =mysqldump= command.
+
+      The =no_create_db= parameter specifies whether to include the create database statement in the SQL file, with a default value of =false=.
+
+
+**** Plot
+
+     Arql integrates the youplot library of Ruby and adds some methods to Array that can be used to draw charts:
+
+     + =barplot=
+     + =countplot=
+     + =histo=
+     + =lineplot=
+     + =lineplots=
+     + =scatter=
+     + =density=
+     + =boxplot=
+
+       Example:
+
+       Count plot:
+
+     #+BEGIN_EXAMPLE
+       ARQL@demo247(main) [44] ❯ Student.pluck(:gender)
+       => ["M", "M", "M", "M", "M", "M", "M", "F", "M", "F", "M", "M", "M", "M", "M"]
+       ARQL@demo247(main) [45] ❯ Student.pluck(:gender).countplot
+            ┌                                        ┐
+          M ┤■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 13.0
+          F ┤■■■■■ 2.0
+            └                                        ┘
+     #+END_EXAMPLE
+
+     Histo plot:
+
+     #+BEGIN_EXAMPLE
+       ARQL@jicai.dev(main) [18] ❯ Order.last(20).pluck(:order_sum)
+       => [0.21876e5, 0.336571e5, 0.1934e5, 0.966239e4, 0.38748e3, 0.31092e4, 0.483e5, 0.445121e5, 0.1305e4, 0.2296e6, 0.943e5, 0.352e4, 0.3756e5, 0.323781e5, 0.7937622e5, 0.982e4, 0.338393e5, 0.316597e5, 0.213678e5, 0.336845e5]
+       ARQL@jicai.dev(main) [19] ❯ Order.last(20).pluck(:order_sum).histo
+                               ┌                                        ┐
+          [     0.0,  50000.0) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 17
+          [ 50000.0, 100000.0) ┤▇▇▇▇ 2
+          [100000.0, 150000.0) ┤ 0
+          [150000.0, 200000.0) ┤ 0
+          [200000.0, 250000.0) ┤▇▇ 1
+                               └                                        ┘
+                                               Frequency
+
+     #+END_EXAMPLE
+
+**** =String=
+
+***** =Srting#p=
+
+      The definition of the =p= method is as follows:
+
+      #+begin_example
+      class String
+        def p
+          puts self
+        end
+      end
+      #+end_example
+
+
+      =​"hello".p= is equivalent to =puts "hello"​=.
+
+***** =String#parse=
+
+      For a string representing a file path, you can call the =parse= method to parse Excel, CSV, and JSON files based
+      on the file extension in the file path.
+
+      #+BEGIN_EXAMPLE
+        excel = 'path/to/excel.xlsx'.parse
+        csv = 'path/to/csv.csv'.parse
+        json = 'path/to/json.json'.parse
+      #+END_EXAMPLE
+
+**** =ID=
+
+     Arql provides an ID class for generating snowflake algorithm IDs and UUIDs.
+
+     #+BEGIN_EXAMPLE
+       id = ID.long # 生成一个雪花算法 ID
+       id = ID.uuid # 生成一个 UUID
+     #+END_EXAMPLE
+
+**** Ransack
+
+     Arql integrates Ransack:
+
+     #+BEGIN_EXAMPLE
+       Student.ransack(name_cont: 'Tom').result # 模糊查询名字中包含 'Tom' 的学生
+       Student.ransack(name_start: 'Tom').result # 模糊查询名字以 'Tom' 开头的学生
+     #+END_EXAMPLE
+
+*** Emacs Org Babel Integration
+
+    Here is an [[https://github.com/lululau/spacemacs-layers/blob/master/ob-arql/local/ob-arql/ob-arql.el][ob-arql]], which is used to integrate Emacs org babel.
+
+** Guides and Tips
+*** [[./define-associations.org][Define Associations in Initializer File]]
+*** [[./initializer-structure.org][Put Initialization Code for Different Environments in Different Files]]
+*** [[./helper-for-datetime-range-query.org][Define Convenient Methods for Quickly Querying by Time]]
+*** [[./auto-set-id-before-save.org][Automatically Set ID for New Objects Before Saving]]
+*** [[./custom-configurations.org][Custom Configuration Items in the Configuration File]]
+*** [[./sql-log.org][Automatically Record SQL Logs and REPL Input History]]
+*** [[./fuzzy-field-query.org][Fuzzy Field Name Query]]
+*** [[./oss-files.org][OSS Data Download and View]]
+*** Use Arql to query SQLite3 database file
+
+    You can use Arql to view SQLite3 database files, for example:
+
+    #+BEGIN_EXAMPLE
+      arql -d db/development.sqlite3
+    #+END_EXAMPLE
+
+*** Find fields by name or comment
+
+    When we are familiar with a project, we often encounter the following situation: we know the name or comment of a
+    field, but we do not know the corresponding table name and field name. At this time, we can use the following method
+    to find:
+
+    #+BEGIN_SRC ruby
+      puts model_classes.flat_map { |m| m.columns.select {|c| c.name =~ /amount/ || c.comment =~ /金额/ }.map {|c| "Table: #{m.table_name}, Column: #{c.name} (#{c.comment})"} }
+
+      # 输出：
+      # Table: order, Column: entry_amount (订单金额)
+      # Table: sub_order, Column: entry_price (金额)
+    #+END_SRC
+
+** Development
+
+   After checking out the code, run =bin/setup= to install dependencies. You can also run =bin/console= for an
+   interactive prompt that will allow you to experiment.
+
+   To install this gem onto your local machine, run =bundle exec rake install=. To release a new version, update the
+   version number in =version.rb=, and then run =bundle exec rake release=, which will create a git tag for the
+   version, push git commits and tags, and push the =.gem= file to [[https://rubygems.org][rubygems.org]].
+
+
+** Contributing
+
+   Bug reports and pull requests are welcome on GitHub at https://github.com/lululau/arql. This project is intended to
+   be a safe, welcoming space for collaboration, and contributors are expected to adhere to the
+   [[https://github.com/lululau/arql/blob/master/CODE_OF_CONDUCT.md][Code of Conduct]].
+
+
+** License
+
+   The gem is available as open source under the terms of the [[https://opensource.org/licenses/MIT][MIT License]].
+
+** Code of Conduct
+
+
+   Everyone interacting in the Arql project’s codebases, issue trackers, chat rooms and mailing lists is expected to follow
+   the [[https://github.com/lululau/arql/blob/master/CODE_OF_CONDUCT.md][Code of Conduct]].

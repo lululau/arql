@@ -1,0 +1,54 @@
+* Additional config items in Configuration File
+
+  You can define your own configuration items in the configuration file (such as the default =~/.arql.yaml= /
+  =~/.arql.d/init.yaml=), and then get the value of the configuration item in the code through
+  =Arql::App.config["CONF_KEY"]=.
+
+  For example, suppose the system encrypts the =account_no= field of the BankAccount table, you can define the
+  encryption key in the configuration file:
+
+  #+BEGIN_SRC yaml
+    dev:
+      <<: *default
+      host: 127.0.0.1
+      port: 3306
+      username: test
+      password: test123456
+      database: devel 
+      encrypt_key: "1234567890abcdef"
+  #+END_SRC
+
+  Then you can read the value of the configuration item in the Initialzier code (=~/.arql.rb= /
+  =~/.arql.d/init.rb=):
+  
+  #+BEGIN_SRC ruby
+    class BankAccount
+    
+      def self.encrypt_account_no(account_no)
+        cipher = OpenSSL::Cipher.new('AES-128-ECB')
+        cipher.encrypt
+        cipher.key = Arql::App.config["encrypt_key"]
+        encrypted = cipher.update(account_no) + cipher.final
+        encrypted.unpack('H*').first
+      end
+    
+      def self.decrypt_account_no(encrypted_account_no)
+        cipher = OpenSSL::Cipher.new('AES-128-ECB')
+        cipher.decrypt
+        cipher.key = Arql::App.config["encrypt_key"]
+        decrypted = cipher.update([encrypted_account_no].pack('H*')) + cipher.final
+        decrypted
+      end
+    
+    
+      # After querying the data from the database, automatically decrypt the account_no field
+      after_find do
+        self.password = decrypt_account_no(self.password)
+      end
+    
+      # Before saving the data, automatically encrypt the account_no field
+      before_save do
+        self.password = encrypt_account_no(self.password)
+      end
+    end
+  #+END_SRC

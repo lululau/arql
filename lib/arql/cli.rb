@@ -36,7 +36,7 @@ module Arql
             @options.env = env
           end
 
-          opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify database Adapter, default is mysql2') do |db_adapter|
+          opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify database Adapter, default is sqlite3') do |db_adapter|
             @options.adapter = db_adapter
           end
 

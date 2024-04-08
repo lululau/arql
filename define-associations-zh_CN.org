@@ -1,0 +1,38 @@
+* 在 Initializer 文件中定义关联关系
+
+  可以在 Initializer 文件中定义关联关系，Arql 启动后会首先根据数据库 Schema 生成模型类，然后加载 Initializer 文件。
+
+  Initializer 文件是一个 Ruby 文件，因此可以在其中定义关联关系，例如：
+
+  #+BEGIN_SRC ruby
+    class Student
+      has_many :courses, foreign_key: :student_id, class_name: 'Course'
+      belongs_to :school, foreign_key: :school_id, class_name: 'School'
+
+      has_and_belongs_to_many :teachers, join_table: 'students_teachers', foreign_key: :student_id, association_foreign_key: :teacher_id, class_name: 'Teacher'
+    end
+
+    class Course
+      belongs_to :student, foreign_key: :student_id, class_name: 'Student'
+    end
+
+    class School
+      has_many :students, foreign_key: :school_id, class_name: 'Student'
+    end
+
+    class Teacher
+      has_and_belongs_to_many :students, join_table: 'students_teachers', foreign_key: :teacher_id, association_foreign_key: :student_id, class_name: 'Student'
+    end
+  #+END_SRC
+
+  1. =has_one= 表明此表是一对一关系的属主
+  2. =belongs_to= 表明此表是一对多或一对一关系的从属方
+  3. =has_and_belongs_to_many= 表明此表是多对多关系的其中一方
+  4. =class_name= 表明此关联关系对应的对方的 Model 类名（Model 类名实际就是表名的 CamelCase 形式）
+  5. =foreign_key= 表明此关联关系中，从属表一侧的关联字段名
+  6. =primary_key= 表明此关联关系中，属主表一侧的关联字段名
+  7. =join_table= 在多对多关系中，表明关联两个表的中间表名
+  8. =association_foreign_key= 在多对多关系中，表明对方 Model 在中间表中的关联字段名
+
+  可以参考： https://guides.rubyonrails.org/association_basics.html
+

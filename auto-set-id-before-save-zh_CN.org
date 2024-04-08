@@ -1,0 +1,35 @@
+* 新建对象在保存之前自动设置 ID
+
+  对于非 =auto_increment= 的主键，那么可能希望在保存对象之前，为其设置一个唯一的 ID。可以这样做：
+
+  创建一个文件 =~/.arql.d/auto_gen_id.rb= ，内容如下：
+
+  #+BEGIN_SRC ruby
+    class ::ArqlModel
+      before_create do
+        if id.blank?
+          id_type = self.class.columns_hash['id'].sql_type.scan(/\w+/).first
+          case id_type
+          when 'bigint'
+            self.id = ::Arql::ID.long
+          when 'char'
+            self.id = ::Arql::ID.uuid
+          when 'varchar'
+            self.id = ::Arql::ID.uuid
+          end
+        end
+      end
+    end
+  #+END_SRC
+  
+   然后在 =~/.arql.d/init.rb= 中引入这个文件:
+
+   #+BEGIN_SRC ruby
+     load(File.absolute_path(File.dirname(__FILE__) + "/auto_set_id.rb"))
+   #+END_SRC
+
+   前提是，你的表的主键是 =id= 字段，且类型是 =bigint= 或 =char= 或 =varchar= 之一。
+
+   如果你的表的主键不是 =id= 字段，那么你需要修改上面的代码。
+
+   

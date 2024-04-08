@@ -1,0 +1,165 @@
+* Fuzzy Field Query
+
+  Sometimes the field name of the system is very long, we can use Fuzzy Field Query to simplify the query, for example,
+  there is a field name =system_user_nickname=, we hope to use =nickname= to query. Even =nick= or =nina= can also be
+  queried.
+
+  #+BEGIN_SRC ruby
+    user = User.find_by_nick('张三')  # select * from users where system_user_nickname = '张三'
+    user = User.find_by_nina('张三')  # select * from users where system_user_nickname = '张三'
+    
+    name = user.nina  # return user.system_user_nickname
+  #+END_SRC
+
+  You can implement it as follows:
+
+  Create a file =~/.arql.d/fuzzy_field_query.rb=, the content is as follows:
+  
+  #+BEGIN_SRC ruby
+    module ActiveRecord
+      module Core
+        def inspect
+          # We check defined?(@attributes) not to issue warnings if the object is
+          # allocated but not initialized.
+          inspection = if defined?(@attributes) && @attributes
+                         self.class.attribute_names.collect do |name|
+              if has_attribute?(name)
+                attr = _read_attribute(name)
+                value = if attr.nil?
+                          attr.inspect
+                        else
+                          attr = format_for_inspect(attr)
+                          inspection_filter.filter_param(name, attr)
+                        end
+                "#{name}: #{value}"
+              elsif has_attribute?(name.upcase)
+                attr = _read_attribute(name.upcase)
+                value = if attr.nil?
+                          attr.inspect
+                        else
+                          attr = format_for_inspect(attr)
+                          inspection_filter.filter_param(name.upcase, attr)
+                        end
+                "#{name}: #{value}"
+              end
+            end.compact.join(", ")
+                       else
+                         "not initialized"
+                       end
+    
+          "#<#{self.class} #{inspection}>"
+        end
+    
+        def pretty_print(pp)
+          return super if custom_inspect_method_defined?
+          pp.object_address_group(self) do
+            if defined?(@attributes) && @attributes
+              attr_names = self.class.attribute_names.select { |name| has_attribute?(name) || has_attribute?(name.upcase) }
+              pp.seplist(attr_names, proc { pp.text "," }) do |attr_name|
+                pp.breakable " "
+                pp.group(1) do
+                  pp.text attr_name
+                  pp.text ":"
+                  pp.breakable
+                  if has_attribute?(attr_name)
+                    value = _read_attribute(attr_name)
+                    value = inspection_filter.filter_param(attr_name, value) unless value.nil?
+                  elsif has_attribute?(attr_name.upcase)
+                    value = _read_attribute(attr_name.upcase)
+                    value = inspection_filter.filter_param(attr_name.upcase, value) unless value.nil?
+                  end
+                  pp.pp value
+                end
+              end
+            else
+              pp.breakable " "
+              pp.text "not initialized"
+            end
+          end
+        end
+    
+        module ClassMethods
+          def find_by(*args) # :nodoc:
+            return super if scope_attributes? || reflect_on_all_aggregations.any? ||
+              columns_hash.key?(inheritance_column) && !base_class?
+    
+            hash = args.first
+    
+            return super if !(Hash === hash) || hash.values.any? { |v|
+              StatementCache.unsupported_value?(v)
+            }
+    
+            # We can't cache Post.find_by(author: david) ...yet
+            return super unless hash.keys.all? { |k|
+              fuzzy_regexp = Regexp.new(k.to_s.chars.join('.*'))
+              columns_hash.has_key?(k.to_s) || columns_hash.keys.any? { |e| e =~ fuzzy_regexp }
+            }
+    
+            keys = hash.keys
+    
+            columns_keys = columns_hash.keys
+    
+            keys.map! do |k|
+              k = k.to_s
+              fuzzy_regexp = Regexp.new(k.chars.join('.*'))
+              columns_keys.find { |ck| ck == k }&.to_sym ||
+                columns_keys.find { |ck| ck.split('_').map(&:first).join().start_with?(k) }&.to_sym ||
+                columns_keys.find { |ck| ck =~ fuzzy_regexp }&.to_sym
+            end
+    
+            statement = cached_find_by_statement(keys) { |params|
+              wheres = keys.each_with_object({}) { |param, o|
+                o[param] = params.bind
+              }
+              where(wheres).limit(1)
+            }
+            begin
+              statement.execute(hash.values, connection)&.first
+            rescue TypeError
+              raise ActiveRecord::StatementInvalid
+            end
+          end
+        end
+      end
+    
+      module DynamicMatchers
+        class Method
+          def valid?
+            attribute_names.all? do |name|
+              name = name.downcase unless name == name.downcase
+              fuzzy_regexp = Regexp.new(name.to_s.chars.join('.*'))
+              model.columns_hash[name] ||
+                model.reflect_on_aggregation(name.to_sym) ||
+                model.column_names.any? { |e| e =~ fuzzy_regexp }
+            end
+          end
+        end
+      end
+    end
+    
+    module ActiveModel
+      module AttributeMethods
+        def method_missing(method, *args, &block)
+          if respond_to_without_attributes?(method, true)
+            super
+          else
+            match = matched_attribute_method(method.to_s)
+            unless match
+              fuzzy_regexp = Regexp.new(method.to_s.chars.join('.*'))
+              fuzzy_column = attribute_names.find { |ck| ck.split('_').map(&:first).join().start_with?(method.to_s) } ||
+                attribute_names.find { |ck| ck =~ fuzzy_regexp }
+              match = matched_attribute_method(fuzzy_column) if fuzzy_column
+            end
+            match ? attribute_missing(match, *args, &block) : super
+          end
+        end
+      end
+    end
+    
+  #+END_SRC
+
+  Then introduce this file in =~/.arql.d/init.rb=:
+
+  #+BEGIN_SRC ruby
+    load(File.absolute_path(File.dirname(__FILE__) + "/fuzzy_field_query.rb"))
+  #+END_SRC

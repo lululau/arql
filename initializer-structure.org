@@ -1,0 +1,31 @@
+* Place your initialization code in a file named after the environment
+
+  If you have multiple environments in your configuration file, you can place the initialization code for each environment in a separate file to avoid conflicts.
+
+  Suppose you have 4 database environments in your configuration file:
+
+  + apollo.dev
+  + apollo.prod
+  + space.dev
+  + space.prod
+
+  You can create the following files in the =~/.arql.d/= directory:
+
+  + apollo.rb
+  + space.rb
+
+  Place the initialization code for the apollo project in the =apollo.rb= file; place the initialization code for the space project in the =space.rb= file.
+
+  Then write the following code in the =~/.arql.d/init.eb= file:
+
+  #+BEGIN_SRC ruby
+    ["apollo", "space"].each do |project|
+      if Arql::App.env.try { |e| e.include?(project + ".") }
+        load(File.absolute_path(File.dirname(__FILE__) + "/#{project}.rb"))
+        break
+      end
+    end
+  #+END_SRC
+
+  Now, when you run =arql -e apollo.dev= or =arql =e apollo.prod=, the initialization code in the =apollo.rb= file will be loaded; when you run =arql -e space.dev= or =arql -e space.prod=, the initialization code in the =space.rb= file will be loaded.
+  

@@ -1,0 +1,55 @@
+* Save SQL logs and REPL history automatically
+
+  If you want Arql to automatically save SQL logs and REPL history, you can:
+
+  Create a directory =~/.arql.d/logs=
+
+  Create a file =~/.arql.d/sql_log.rb= with the following content:
+
+  #+BEGIN_SRC ruby
+    unless Arql::App.config[:append_sql]
+      log_root_dir = File.expand_path('~/.arql.d/logs')
+      log_dir = "#{log_root_dir}/%s" % Arql::App.env
+      FileUtils.mkdir_p(log_dir)
+      now = Time.now
+      log_file = "#{log_dir}/%s.%s.%s.log" % [Time.now.strftime('%Y_%m%d_%H%M%S'), `hostname -s`.chomp.downcase, Process.pid]
+      Arql::App.config[:append_sql] = log_file
+    
+      lfile = File.new(log_file, 'a')
+      lfile.sync = true
+      InputLogger = Logger.new(lfile)
+    
+      module Readline
+        class << self
+          alias_method :original_readline, :readline
+          def readline(*args)
+            Readline.original_readline(*args).tap do |user_input|
+              InputLogger.info(user_input)
+            end
+          end
+        end
+      end
+    end
+  #+END_SRC
+
+  Then include this file in =~/.arql.d/init.rb=:
+
+  #+BEGIN_SRC ruby
+    load(File.absolute_path(File.dirname(__FILE__) + "/sql_log.rb"))
+  #+END_SRC
+
+  This way you can see SQL logs and REPL history in the =~/.arql.d/logs= directory.
+
+  Example:
+
+  #+BEGIN_EXAMPLE
+    I, [2024-04-07T17:12:00.530341 #20440]  INFO -- : P.count
+    D, [2024-04-07T17:12:00.577305 #20440] DEBUG -- :   Post Count (22.6ms)  SELECT COUNT(*) FROM `post`
+    I, [2024-04-07T17:12:02.879312 #20440]  INFO -- : P.all.t
+    D, [2024-04-07T17:12:02.960014 #20440] DEBUG -- :   Post Load (64.1ms)  SELECT `post`.* FROM `post`
+    I, [2024-04-07T17:12:54.721861 #20440]  INFO -- : P.pluck
+    D, [2024-04-07T17:12:54.756435 #20440] DEBUG -- :   Post Pluck (28.0ms)  SELECT `post`.`gender` FROM `post`
+  #+END_EXAMPLE
+
+  
+  

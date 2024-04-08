@@ -1,0 +1,37 @@
+* Define associations in Initializers
+
+  You can define associations in Initializers. Arql will generate model classes based on the database schema when it starts, and then load the Initializer file.
+
+  The Initializer file is a Ruby file, so you can define associations in it, for example:
+
+  #+BEGIN_SRC ruby
+    class Student
+      has_many :courses, foreign_key: :student_id, class_name: 'Course'
+      belongs_to :school, foreign_key: :school_id, class_name: 'School'
+
+      has_and_belongs_to_many :teachers, join_table: 'students_teachers', foreign_key: :student_id, association_foreign_key: :teacher_id, class_name: 'Teacher'
+    end
+
+    class Course
+      belongs_to :student, foreign_key: :student_id, class_name: 'Student'
+    end
+
+    class School
+      has_many :students, foreign_key: :school_id, class_name: 'Student'
+    end
+
+    class Teacher
+      has_and_belongs_to_many :students, join_table: 'students_teachers', foreign_key: :teacher_id, association_foreign_key: :student_id, class_name: 'Student'
+    end
+  #+END_SRC
+
+  1. =has_one= indicates that this table is the owner of a one-to-one relationship
+  2. =belongs_to= indicates that this table is the dependent side of a one-to-many or one-to-one relationship
+  3. =has_and_belongs_to_many= indicates that this table is one of the many-to-many relationships
+  4. =class_name= indicates the Model class name of the corresponding relationship (the Model class name is actually the CamelCase form of the table name)
+  5. =foreign_key= indicates the name of the association field on the dependent side of the association
+  6. =primary_key= indicates the name of the association field on the owner side of the association
+  7. =join_table= in many-to-many relationships, indicates the name of the intermediate table that associates the two tables
+  8. =association_foreign_key= in many-to-many relationships, indicates the association field name of the other Model in the intermediate table
+
+  You can refer to: https://guides.rubyonrails.org/association_basics.html

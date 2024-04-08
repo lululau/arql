@@ -1,0 +1,161 @@
+* OSS 数据下载和查看
+
+  有的系统使用云存储服务来存储系统中的文件数据，并在数据库中存储文件在 OSS 上的 Key。我们希望可以在 Arql 中直接下载和查看这些文件。
+
+** 首先需要安装和配置 =rclone= 工具
+
+   macOS 示例:
+
+   #+BEGIN_EXAMPLE
+    brew install rclone
+   #+END_EXAMPLE
+
+   
+** 配置 rclone
+
+   在 =~/.config/rclone/rclone.conf= 文件中添加系统所使用的 OSS 配置，例如：
+
+   #+BEGIN_EXAMPLE
+     [my_system]
+     type = s3
+     provider = Alibaba
+     env_auth = false
+     access_key_id = LTAxuiwqsayuuyea
+     secret_access_key = sauiqwYUwqhjsdayuwehjkwehjwehj
+     endpoint = oss-cn-beijing.aliyuncs.com
+     acl = private
+     storage_class = STANDARD
+   #+END_EXAMPLE
+
+   
+** 在 =~/.arql.d/init.yaml= 中添加配置
+
+   #+BEGIN_SRC yaml
+     dev:
+       created_at: ["create_time", "gmt_created"]
+       updated_at: ["update_time", "gmt_modified"]
+       host: db.dev.com
+       port: 3306
+       username: admin
+       password: 123456
+       database: dev_db
+       rclone_name: "my_system"
+       oss_bucket: "my_system_dev_bucket"
+     
+     prod:
+       created_at: ["create_time", "gmt_created"]
+       updated_at: ["update_time", "gmt_modified"]
+       host: db.prod.com
+       port: 3306
+       username: admin
+       password: 123456
+       database: prod_db
+       rclone_name: "my_system"
+       oss_bucket: "my_system_prod_bucket"
+   #+END_SRC
+
+   
+** 创建一个文件 =~/.arql.d/oss.rb= 
+
+   #+BEGIN_SRC ruby
+     class OSS
+       def pry_source_location; end
+     
+       attr_accessor :path, :bucket
+     
+       def initialize(path, bucket: nil)
+         @path = path
+         unless bucket
+           bucket = Arql::App.config['oss_bucket']
+         end
+         @bucket = bucket
+       end
+     
+       def rclone_name
+         Arql::App.config['rclone_name']
+       end
+     
+       def info
+         `rclone lsl #{rclone_name}:#{bucket}/#{path}`
+       end
+     
+       def download(dir = nil, keep_structure = false)
+         dir = File.expand_path(dir) if dir
+         dir ||= Dir.mktmpdir('arql-attachment-')
+         if keep_structure
+           dest_dir = dir + '/' + File.dirname(path)
+           FileUtils.mkdir_p(dest_dir)
+           system <<~EOF
+           rclone copy #{rclone_name}:#{bucket}/#{path} #{dest_dir}/
+           EOF
+           dest_dir + '/' + File.basename(path)
+         else
+           system <<~EOF
+           rclone copy #{rclone_name}:#{bucket}/#{path} #{dir}/
+           EOF
+           dir + '/' + File.basename(path)
+         end
+       end
+     
+       def copy(dest_name, dest_bucket)
+         path_prefix = File.dirname(path)
+         system "rclone copy -P #{rclone_name}:#{bucket}/#{path} #{dest_name}:#{dest_bucket}/#{path_prefix}/"
+       end
+     
+       def cat
+         `rclone cat #{rclone_name}:#{bucket}/#{path}`
+       end
+     
+       def to_rclone_url
+         "#{rclone_name}:#{bucket}/#{path}"
+       end
+     
+       def open
+         file = download
+         system <<~EOF
+         open #{file}
+         EOF
+         file
+       end
+     
+       def preview
+         file = download
+         system <<~EOF
+         qlmanage -p #{file} &> /dev/null
+         EOF
+         file
+       end
+     
+       def emacs_open
+         file = download
+         system <<~EOF
+         emacsclient -q --eval "(switch-to-buffer-other-window (current-buffer))" &> /dev/null
+         emacsclient -n '#{file}'
+         EOF
+         file
+       end
+     end
+     
+     class String
+       def oss(bucket: nil)
+         OSS.new(self, bucket: bucket)
+       end
+     end
+   #+END_SRC
+
+** 在 =~/.arql.d/init.rb= 中引入这个文件
+
+    #+BEGIN_SRC ruby
+     load(File.absolute_path(File.dirname(__FILE__) + "/oss.rb"))
+    #+END_SRC
+
+** 用法
+
+   假设 user 表中有一个 avatar 字段存储了用户头像在 OSS 上的 Key，我们可以这样查看和下载头像：
+
+    #+BEGIN_SRC ruby
+      User.first.avatar.oss.preview  # 使用 macOS Quick Look 预览
+      User.first.avatar.oss.download  # 下载到临时目录，并返回文件路径
+      User.first.avatar.oss.open  # 下载到临时目录，并使用系统（macOS）默认程序打开
+      User.first.avatar.oss.cat  # 直接输出文件内容
+    #+END_SRC

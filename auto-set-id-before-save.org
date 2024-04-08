@@ -1,0 +1,33 @@
+* Set ID automatically for new objects before saving
+
+  For primary keys that are not =auto_increment=, you may want to set a unique ID for the object before saving it. You can do this:
+
+  Create a file =~/.arql.d/auto_gen_id.rb= with the following content:
+
+  #+BEGIN_SRC ruby
+    class ::ArqlModel
+      before_create do
+        if id.blank?
+          id_type = self.class.columns_hash['id'].sql_type.scan(/\w+/).first
+          case id_type
+          when 'bigint'
+            self.id = ::Arql::ID.long
+          when 'char'
+            self.id = ::Arql::ID.uuid
+          when 'varchar'
+            self.id = ::Arql::ID.uuid
+          end
+        end
+      end
+    end
+  #+END_SRC
+
+  Then in =~/.arql.d/init.rb=, require this file:
+
+  #+BEGIN_SRC ruby
+    load(File.absolute_path(File.dirname(__FILE__) + "/auto_set_id.rb"))
+  #+END_SRC
+
+  The prerequisite is that the primary key of your table is the =id= field, and the type is one of =bigint=, =char= or =varchar=.
+
+  If the primary key of your table is not the =id= field, you need to modify the code above.

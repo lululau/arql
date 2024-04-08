@@ -1,0 +1,218 @@
+* Define helper function to create datetime range objects
+  
+** Problem
+
+   When we need to query records within a time range, we need to construct a Range object representing the time range, for example:
+
+   #+BEGIN_SRC ruby
+     Student.where(created_at: Time.now.beginning_of_day..Time.now.end_of_day)
+   #+END_SRC
+
+   or
+
+   #+BEGIN_SRC ruby
+     Student.where(created_at: Time.new(2016, 1, 1)..Time.new(2016, 12, 31))
+   #+END_SRC
+
+** Define a helper function
+
+    To simplify the process of constructing a time Range object, we can define a helper function, for example:
+  
+    Create a file =~/.arql.d/date_range.rb= with the following content:
+
+       #+BEGIN_SRC ruby
+     module Kernel
+    
+       # == Example:
+       #  Range
+       #    1. -3..0
+       #    2. '27'..'29'
+       #    3. '04-01'..'04-10'
+       #    4. '2021-04-01'..'2021-04-10'
+       #  Array
+       #    1. [nil, nil] or [] => 1970-01-01 ~ 1000 days later from now
+       #    2. [:yday, :today] or [:yesterday, :today]
+       #    3. [-10.months, :today]
+       #  Others
+       #    1. Time.now or Date.today
+       #    2. :now or :today
+       #    3. :yesterday or :yday
+       #    4. -2
+       #    5. -2.months
+       def dates_range(dates)
+         dates = :yesterday if dates == :yday
+         if dates.is_a?(Range)
+           s = if dates.begin.is_a?(Integer)
+                 (Time.now+dates.begin.days).beginning_of_day
+               elsif dates.begin.is_a?(String) && dates.begin =~ /^\d{4}-\d{2}-\d{2}$/
+                 Time.parse(dates.begin).beginning_of_day
+               elsif dates.begin.is_a?(String) && dates.begin =~ /^\d{2}-\d{2}$/
+                 Time.strptime(dates.begin, '%m-%d').beginning_of_day
+               elsif dates.begin.is_a?(String) && dates.begin =~ /^\d{2}$/
+                 Time.strptime(dates.begin, '%d').beginning_of_day
+               else
+                 dates.begin
+               end
+           e = if dates.end.is_a?(Integer)
+                 (Time.now+dates.end.days).end_of_day
+               elsif dates.end.is_a?(String) && dates.end =~ /^\d{4}-\d{2}-\d{2}$/
+                 Time.parse(dates.end).end_of_day
+               elsif dates.end.is_a?(String) && dates.end =~ /^\d{2}-\d{2}$/
+                 Time.strptime(dates.end, '%m-%d').end_of_day
+               elsif dates.end.is_a?(String) && dates.end =~ /^\d{2}$/
+                 Time.strptime(dates.end, '%d').end_of_day
+               else
+                 dates.end
+               end
+           s..e
+         elsif dates.is_a?(Array)
+           if dates.size == 2
+             s = dates.first || Date.new(1970, 1, 1)
+             s = if s.is_a?(Time) || s.is_a?(Date)
+                   s.beginning_of_day
+                 elsif s == :now
+                   Time.now.beginning_of_day
+                 elsif s == :today
+                   Date.today.beginning_of_day
+                 elsif s == :yesterday || s == :yday
+                   Date.yesterday.beginning_of_day
+                 elsif s.in?(Time.instance_methods)
+                   Time.now.send(s).beginning_of_day
+                 elsif s.is_a?(ActiveSupport::Duration)
+                   (Time.now+s).beginning_of_day
+                 elsif s.is_a?(Integer)
+                   (Time.now+s.days).beginning_of_day
+                 else
+                   raise "Not supported s: #{s}"
+                 end
+             e = dates.last || Date.today + 1000.days
+             e = if e.is_a?(Time) || e.is_a?(Date)
+                   e.end_of_day
+                 elsif e == :now
+                   Time.now.end_of_day
+                 elsif e == :today
+                   Date.today.end_of_day
+                 elsif e == :yesterday || e == :yday
+                   Date.yesterday.end_of_day
+                 elsif e.in?(Time.instance_methods)
+                   Time.now.send(e).end_of_day
+                 elsif e.is_a?(ActiveSupport::Duration)
+                   (Time.now+e).end_of_day
+                 elsif e.is_a?(Integer)
+                   (Time.now+e.days).beginning_of_day
+                 else
+                   raise "Not supported e: #{e}"
+                 end
+             return s..e
+           else
+             times = dates.map do |date|
+               if date.nil?
+                 nil
+               elsif date.is_a?(Time)
+                 date
+               elsif date == :now
+                 Time.now
+               elsif date.in?(Time.instance_methods)
+                 Time.now.send(date)
+               elsif date.is_a?(ActiveSupport::Duration)
+                 Time.now+date
+               elsif date.is_a?(Integer)
+                 (Time.now+date.days).beginning_of_day
+               else
+                 raise "Not supported date: #{date}"
+               end
+             end
+             s = times.first || Time.new(1970, 1, 1, 0, 0, 0)
+             e = times.last || Time.now + 1000.days
+             return s..e
+           end
+         else
+           if dates.is_a?(Time) or dates.is_a?(Date)
+             dates = dates.beginning_of_day..dates.end_of_day
+           elsif dates == :now
+             dates = Time.now.beginning_of_day..Time.now.end_of_day
+           elsif dates == :today
+             dates = Date.today.beginning_of_day..Date.today.end_of_day
+           elsif dates == :yday || dates == :yesterday
+             dates = Date.yesterday.beginning_of_day..Date.yesterday.end_of_day
+           elsif dates.in?(Time.instance_methods)
+             dates = Time.now.send(dates).beginning_of_day..Time.now.send(dates).end_of_day
+           elsif dates.is_a?(ActiveSupport::Duration)
+             dates = (Time.now+dates).beginning_of_day..(Time.now+dates).end_of_day
+           elsif dates.is_a?(Integer)
+             (Time.now+dates.days).beginning_of_day..(Time.now+dates.days).end_of_day
+           else
+             raise "Not supported dates: #{dates}"
+           end
+         end
+       end
+    
+       alias_method :dates, :dates_range
+     end
+    
+     class ::ArqlModel
+    
+       class << self
+         def ts_attribute_for_create
+           (timestamp_attributes_for_create||[]).find { |e| e.in?(column_names) }
+         end
+    
+         def ts_attribute_for_update
+           (timestamp_attributes_for_update||[]).find { |e| e.in?(column_names) }
+         end
+    
+    
+         def created_on(dates)
+           attr = ts_attribute_for_create
+           raise 'No attrtibute for create defined' unless attr
+           where(attr => dates_range(dates))
+         end
+    
+         alias on created_on
+    
+         def today
+           created_on(0)
+         end
+    
+         def modified_on(dates)
+           attr = ts_attribute_for_update
+           raise 'No attrtibute for update defined' unless attr
+           where(attr: dates_range(dates))
+         end
+       end
+     end
+   #+END_SRC
+
+    
+    Then include this file in =~/.arql.d/init.rb=:
+  
+    #+BEGIN_SRC ruby
+      load(File.absolute_path(File.dirname(__FILE__) + "/date_range.rb"))
+    #+END_SRC
+
+
+** Usage
+
+    Then you can use this method:
+
+    #+BEGIN_SRC ruby
+      Student.where(created_at: dates(0)). # Query records created today
+      Student.where(created_at: dates(:today)). # Query records created today
+      Student.where(created_at: dates('2016-01-01'..'2016-01-31')) # Query records created in January 2016
+      Student.where(created_at: dates('01'..'10'))  # Query records created on the 1st to the 10th of the current month
+      Student.where(created_at: dates('03-01'..'04-10'))  # Query records created from March 1st to April 10th of the current year
+      Student.where(created_at: dates(-20..-1))  # Query records created 20 days ago to yesterday
+    #+END_SRC
+
+    If you are querying the =created_at= field (configured in =init.yaml= with =created_at=, the default value is =created_at=), you can use:
+
+    #+BEGIN_SRC ruby
+      Student.on(0). # Query records created today
+      Student.on(:today). # Query records created today
+      Student.on('2016-01-01'..'2016-01-31') # Query records created in January 2016
+      Student.on('01'..'10')  # Query records created on the 1st to the 10th of the current month
+      Student.on('03-01'..'04-10')  # Query records created from March 1st to April 10th of the current year
+      Student.on(-20..-1)  # Query records created 20 days ago to yesterday
+    #+END_SRC
+
+
