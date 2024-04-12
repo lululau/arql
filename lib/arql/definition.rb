@@ -119,7 +119,11 @@ module Arql
           tables.each do |table_name|
             table_comment = comments[table_name]
             primary_keys[table_name].tap do |pkey|
-              table_name.send(@@classify_method).tap do |const_name|
+              table_name_prefixes = options[:table_name_prefixes] || []
+              normalized_table_name = table_name_prefixes.each_with_object(table_name.dup) do |prefix, name|
+                name.sub!(/^#{prefix}/, '')
+              end
+              normalized_table_name.send(@@classify_method).tap do |const_name|
                 const_name = 'Modul' if const_name == 'Module'
                 const_name = 'Clazz' if const_name == 'Class'
                 Class.new(::ArqlModel) do
@@ -213,7 +217,11 @@ module Arql
         tables.each do |table_name|
           table_comment = comments[table_name]
           primary_keys[table_name].tap do |pkey|
-            table_name.send(@@classify_method).tap do |const_name|
+            table_name_prefixes = options[:table_name_prefixes] || []
+            normalized_table_name = table_name_prefixes.each_with_object(table_name.dup) do |prefix, name|
+              name.sub!(/^#{prefix}/, '')
+            end
+            normalized_table_name.send(@@classify_method).tap do |const_name|
               const_name = 'Modul' if const_name == 'Module'
               const_name = 'Clazz' if const_name == 'Class'
               if const_name !~ /^[A-Z][A-Za-z0-9_]*$/
