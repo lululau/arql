@@ -175,6 +175,7 @@
     6. =ssh.password= : ssh password
     7. =ssh.local_port= : ssh local port
     8. =singularized_table_names=: Whether to use singular table names, default is =false=, if =false=, the =students= table will be defined as the =Student= model, if =true=, the =students= table will be defined as the =Students= model
+    9. =table_name_prefixes=: An array of table name prefixes, defaults to an empty array. If specified, these prefixes will be ignored when generating models. For example, if =["t_"]= is specified, then the =t_students= table will be defined as the =Student= model
 
 **** Example
 
@@ -190,6 +191,7 @@
        <<: *default
        username: root
        database: blog
+       table_name_prefixes: ["t_"]
        password:
        socket: /tmp/mysql.sock
 
@@ -200,6 +202,7 @@
        username: root
        password: 123456
        database: blog
+       table_name_prefixes: ["t_"]
        ssh:
          host: dev.mycompany.com
          port: 22

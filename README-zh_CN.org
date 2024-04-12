@@ -166,6 +166,7 @@
     6. =ssh.password= : ssh 密码
     7. =ssh.local_port= : ssh 本地端口
     8. =singularized_table_names=: 是否使用单数表名，默认为 =false=, 如果为 =false=, 则 =students= 表将定义为 =Student= 模型，如果为 =true=, 则 =students= 表将定义为 =Students= 模型
+    9. =table_name_prefixes=: 表名前缀数组，默认为空数组，如果指定了此项，在生成模型时将忽略这些前缀，例如，如果指定了 =["t_"]=, 则 =t_students= 表将定义为 =Student= 模型
 
 **** 配置文件示例
      
@@ -182,6 +183,7 @@
        username: root
        database: blog
        password:
+       table_name_prefixes: ["t_"]
        socket: /tmp/mysql.sock
 
      dev:
@@ -191,6 +193,7 @@
        username: root
        password: 123456
        database: blog
+       table_name_prefixes: ["t_"]
        ssh:
          host: dev.mycompany.com
          port: 22
