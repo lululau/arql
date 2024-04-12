@@ -1,0 +1,83 @@
+* ActiveRecord 简明教程
+
+  ActiveRecord 是 Rails 中的 ORM 框架，它将数据库表映射到 Ruby 对象，让我们可以通过 Ruby 对象来操作数据库。
+
+  
+** 定义模型类
+
+  模型类是继承自 ActiveRecord::Base 的类，它们是数据库中的表在 Ruby 语言中的映射。
+
+  #+BEGIN_SRC ruby
+  class User < ActiveRecord::Base
+  end
+  #+END_SRC
+
+  而 User 对象的属性和数据库表的字段的对应关系，是 ActiveRecord 根据数据库中的表信息，自动完成的。
+
+  在 Arql 中，模型类的定义是 Arql 根据数据库表的表信息自动生成的，所以我们不需要像这里一样手动定义模型类。
+   
+** 定义关联关系
+
+   在 ActiveRecord 中，我们可以通过 has_many, belongs_to, has_one 等方法来定义模型类之间的关联关系。
+
+   - =has_many= 表明此表是一对多关系的“一”方
+   - =has_one= 表明此表是一对一关系的属主
+   - =belongs_to= 表明此表是一对多或一对一关系的从属方
+   - =has_and_belongs_to_many= 表明此表是多对多关系的其中一方
+   
+
+   使用 Arql 查询数据库时，我们希望也可以通过定义好的关联关系来查询数据。
+
+   例如，我们有两个模型类 User 和 Post，User 有多个 Post，Post 属于一个 User, 如果我们希望查询张三的所有文章，
+
+   在不使用关联关系的情况下，我们需要这样查询：
+
+   #+BEGIN_SRC ruby
+     user = User.find_by(name: '张三')
+     posts = Post.where(user_id: user.id)
+   #+END_SRC
+
+   而如果我们定义了关联关系，我们可以这样查询：
+
+    #+BEGIN_SRC ruby
+      user = User.find_by(name: '张三')
+      posts = user.posts
+    #+END_SRC
+
+    关联关系是在模型类中定义的，而 Arql 中模型类是 Arql 替我们自动生成的，那么我们要在哪里定义关联关系呢？
+
+    别忘了 Ruby 的类是可以重新打开的，我们可以在 Arql 中重新打开模型类，定义关联关系:
+
+    #+BEGIN_SRC ruby
+    class User < ActiveRecord::Base
+      has_many :posts
+    end
+    #+END_SRC
+
+    像 has_many, belongs_to, has_one 这样的方法，ActiveRecord 会根据默认的规则，来关联关系关联到的是哪个表的哪个字段。这也就是 Rails 中所谓的约定大于配置的体现。 
+
+    使用 Arql 查询既有系统的数据库时，数据库中的表、字段名称往往不符合 Rails 的规则约定，这时我们可以通过传递参数来指定关联关系的关联字段：
+
+    #+BEGIN_SRC ruby
+    class User < ActiveRecord::Base
+      has_many :posts, foreign_key: 'author_id', class_name: 'Article', primary_key: 'uid'
+    end
+    #+END_SRC
+
+    =has_many=, =belongs_to=, =has_one= 方法常用的参数如下：
+
+    - =class_name=: 表明此关联关系对应的对方的 Model 类名
+    - =foreign_key=: 表明此关联关系中，从属表一侧的关联字段名
+    - =primary_key=: 表明此关联关系中，属主表一侧的关联字段名
+    - =join_table=: 在多对多关系中，表明关联两个表的中间表名
+    - =association_foreign_key=: 在多对多关系中，表明对方 Model 在中间表中的关联字段名
+
+** 简单 CRUD
+
+   参考：https://guides.rubyonrails.org/active_record_querying.html
+
+** 参考
+
+   - https://guides.rubyonrails.org/active_record_basics.html
+   - https://guides.rubyonrails.org/active_record_querying.html
+   - https://guides.rubyonrails.org/association_basics.html

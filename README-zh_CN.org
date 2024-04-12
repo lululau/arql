@@ -1078,6 +1078,9 @@
       # Table: sub_order, Column: entry_price (金额)
     #+END_SRC
     
+*** [[./ruby-guides-for-java-developer-zh_CN.org][给 Java 开发者的 Ruby 入门简明教程]]
+*** [[./simple-pry-guides-zh_CN.org][简明 Pry 使用指南]]
+*** [[./simple-active-record-guide-zh_CN.org][简明 ActiveRecord 使用指南]]
 ** 开发
    
    检出代码后，运行 =bin/setup= 安装依赖。你也可以运行 =bin/console= 进入交互式控制台。

@@ -1,0 +1,114 @@
+* Pry 简明教程
+
+** Pry 是什么？
+
+    和 Python 一样，Ruby 也有自己的 REPL 工具，叫做 irb（Interactive Ruby）。
+    
+    Pry 是另外一个功能更加强大的 Ruby REPL 工具，它可以让你在 Ruby REPL 中做很多事情，比如查看源码、查看文档、调试等等。
+
+    Arql 的主要功能就是基于 Pry 实现的，所以你可以把 Pry 当做 Arql 的一个子集。Pry 的命令和功能在 Arql 中都是可以使用的。而且 Arql 还提供了一些额外的 Pry 命令。
+
+
+    当然也可以单独安装和使用 Pry。
+    
+   
+** 单独安装 Pry
+
+   #+BEGIN_EXAMPLE
+    $ gem install pry
+   #+END_EXAMPLE
+
+   Pry 本身也支持扩展，你可以安装一些 Pry 的插件，比如 pry-doc、pry-byebug 等等。
+
+   #+BEGIN_EXAMPLE
+    $ gem install pry-doc
+    $ gem install pry-byebug
+   #+END_EXAMPLE
+
+   
+** 单独使用 Pry
+
+   #+BEGIN_EXAMPLE
+    $ pry
+   #+END_EXAMPLE
+
+   
+** 常用的 Pry 命令
+
+   
+*** 查看帮助
+
+   #+BEGIN_EXAMPLE
+    [1] pry(main)> help
+   #+END_EXAMPLE
+
+   
+*** 查看变量
+
+   #+BEGIN_EXAMPLE
+    [2] pry(main)> ls
+   #+END_EXAMPLE
+
+   
+*** 查看一个实例方法的源码
+
+   #+BEGIN_EXAMPLE
+    [3] pry(main)> show-source ActiveRecord::Base#save
+   #+END_EXAMPLE
+
+   
+*** 查看一个实例方法的文档
+
+   #+BEGIN_EXAMPLE
+    [4] pry(main)> show-doc ActiveRecord::Base#save
+   #+END_EXAMPLE
+
+
+*** 查看一个类的的源码
+
+   #+BEGIN_EXAMPLE
+    [5] pry(main)> show-source ActiveRecord::Base
+   #+END_EXAMPLE
+
+   
+*** 查看一个类的文档
+
+   #+BEGIN_EXAMPLE
+    [6] pry(main)> show-doc ActiveRecord::Base
+   #+END_EXAMPLE
+
+   
+*** 在 Pry 中直接修改代码
+
+    你甚至可以在 Pry 中用 edit 命令直接修改代码，然后 Pry 会自动保存修改后的代码到一个临时文件中，然后你可以在 Pry 中直接调用修改后的代码。
+
+    #+BEGIN_EXAMPLE
+      [7] pry(main)> edit ActiveRecord::Base#save
+    #+END_EXAMPLE
+    
+** 分号
+
+   在 Ruby 语言中， 行尾的分号是可以省略的。
+
+   
+   Pry 中每次执行一个 Ruby 表达式，都会自动打印出这个表达式的值：
+
+    #+BEGIN_EXAMPLE
+      [7] pry(main)> user.posts = Post.all
+      => [#<Post id: 1, title: "Hello World", content: "Hello World", created_at: "2016 -12-12 12:12:12", updated_at: "2016-12-12 12:12:12">,
+          #<Post id: 2, title: "Hello Ruby", content: "Hello Ruby", created_at: "2016-12-12 12:12:12", updated_at: "2016-12-12 12:12:12">,
+          ... ...]
+    #+END_EXAMPLE
+
+    这是通过调用 Ruby 的 表达式的值对象的 inspect 方法 (Object#inspect 方法)实现的。如果你不想打印出这个值，可以在表达式后面加上分号：
+
+    #+BEGIN_EXAMPLE
+      [8] pry(main)> user.posts = Post.all;
+    #+END_EXAMPLE
+
+    我们知道在 ActiveRecord 中，像 =User.where(gender: 'Male')= 这样的表达式，返回结果是一个 ActiveRecord::Relation 对象，而不是一个数组。
+    这样设计的目的是为了支持 Lazy Loading，只有在需要的时候才会去执行 SQL 查询。但是当我们在 Pry 中直接对 =User.where(gender: 'Male')= 的时候，却发现
+    它立即执行了 SQL 查询，并且输出的是一个数组对象；这就是因为 Pry 在打印对象的时候，会调用对象的 inspect 方法，而 ActiveRecord::Relation 对象的 inspect 方法
+    会立即执行 SQL 查询并返回一个数组对象。如果你不想立即执行 SQL 查询，就可以在表达式后面加上分号。
+
+

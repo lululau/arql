@@ -1,0 +1,766 @@
+* Java 开发者的 Ruby 入门简明教程
+
+  Java 非常成熟，久经检验，且非常快（与那些反对java的人可能还在声称的相反）。但它也非常啰嗦。从 Java 到Ruby，可以预见的
+  是代码规模将大大缩小。你也可以期望使用相对少的时间快速出产原型。
+
+** 相似点 Ruby 与 Java 一样的地方
+
+   - 垃圾回收器帮你管理内存。
+   - 强类型对象。
+   - 有 public、 private 和 protected 方法。
+   - 拥有嵌入式文档工具（Ruby 的工具叫 rdoc）。rdoc 生成的文档与 javadoc 非常相似。
+
+** 相异点 Ruby 与 Java 不同的地方
+
+   一些简单总结:
+
+   - 你不需要编译你的代码。你只需要直接运行它。
+   - 定义像类这样的东西时，可以使用 =end= 关键字，而不使用花括号包裹代码块。
+   - 使用 =require= 代替 =import= 。
+   - 所有成员变量为私有。在外部，使用方法获取所有你需要的一切。
+   - 方法调用的括号通常是可选的，经常被省略。
+   - 一切皆对象，包括像 2 和 3.14159 这样的数字。
+   - 没有静态类型检查。
+   - 变量名只是标签。它们没有相应的类型。
+   - 没有类型声明。按需分配变量名，及时可用（如： ~a = [1,2,3]~ 而不是 ~int[] a = {1,2,3};~ ）。
+   - 没有显式转换。只需要调用方法。代码运行之前，单元测试应该告诉你出现异常。
+   - 使用 ~foo = Foo.new("hi")~ 创建新对象，而非 ~Foo foo = new Foo("hi")~ 。
+   - 构造器总是命名为“initialize” 而不是类名称。
+   - 作为接口的替代，你将获得“混入（mixins）”。
+   - 相比 XML，倾向于使用 YAML。
+   - =nil= 替代 =null= 。
+   - Ruby 对 ~==~ 和 ~equals()~ 的处理方式与 Java 不一样。测试相等性使用 ~==~ （Java 中是 ~equals()~ ）。测试是否为同一
+     对象使用 ~equals?()~ （Java 中是 ~==~ ）。
+   - Ruby 里面调用一个函数或方法，参数两边的圆括号可以省略。如：
+     - ~p.say_hello("Hi", "Jack")~ 可以写成 ~p.say_hello "Hi", "Jack"~
+     - ~f.close()~ 可以写成 ~f.close~
+   - 定义函数或方法时，参数两边的圆括号也可以省略。
+   - Ruby 的类可以重新「打开」，即在原有的类定义上追加新的方法或属性、覆盖已有的方法、属性。如:
+     #+BEGIN_SRC ruby
+       class Person < ActiveRecord::Base   # 定义了一个 Person 类，它是 ActiveRecord::Base 的子类
+         def say_hello(message, name)
+           puts "#{name}, #{message}"
+         end
+       end
+       
+       
+       class Person   # 重新打开 Person 类，这里添加了一个 sleep 方法，并且 Person 仍然有 say_hello 方法，并且它仍然是 ActiveRecord::Base 的子类
+         has_many :books    # has_many 是从 ActiveRecord::Base 继承来的类方法（静态方法）, 类方法可以直接在类体中调用（就是和定义方法的同一层级），而实例方法则不可以在类体中调用
+         def sleep(time_secs)
+           ...
+         end
+       end
+     #+END_SRC
+
+    下面是更详细的差异的介绍:
+     
+** 快速简明教程
+   
+*** 代码块以 end 关键字结束
+
+    不同于 Java，Ruby 使用 =end= 关键字来结束代码块，而不是使用花括号。如：
+     
+**** 类定义
+     #+BEGIN_SRC ruby
+       class Person
+         def initialize(name)
+           @name = name
+         end
+       end
+     #+END_SRC
+**** 函数方法定义
+     #+BEGIN_SRC ruby
+       def say_hello
+         puts "Hello"
+       end
+     #+END_SRC
+*** 一切皆对象
+     
+    Ruby 中的数字、字符串、数组等都是对象，它们都有自己的方法。如：
+     
+    #+BEGIN_SRC ruby
+      3.times { puts "Hello" }  # 输出三次 Hello
+      "Hello".length
+      [1, 2, 3].reverse
+    #+END_SRC
+     
+*** 基本数据类型
+**** 数值
+     #+BEGIN_SRC ruby
+       1 + 2
+       2 * 3
+       10 / 5
+       10 % 3
+     #+END_SRC
+**** 字符串
+     #+BEGIN_SRC ruby
+       "Hello, " + "World"
+       "Hello" * 3
+       "Hello".length
+       "Hello".reverse
+     #+END_SRC
+
+     + 单引号字符串中的特殊字符不会被转义，而双引号字符串中的特殊字符会被转义。如：
+       #+BEGIN_SRC ruby
+         puts 'Hello\nWorld'  # 输出 Hello\nWorld
+         puts "Hello\nWorld"  # 输出 Hello
+                              #      World
+       #+END_SRC
+     + 双引号字符串中可以使用 #{} 来插入变量或表达式。如：
+       #+BEGIN_SRC ruby
+         name = "Jack"
+         puts "Hello, #{name}"  # 输出 Hello, Jack
+       #+END_SRC
+        
+**** nil
+
+     Ruby 中的 =nil= 相当于 Java 中的 =null= 。
+      
+**** Symbol
+
+     #+BEGIN_SRC ruby
+       :name
+     #+END_SRC
+
+     Symbol 是一种特殊的字符串(但Symbok 类的和表示字符串的 String 类没有直接关系)，它的值是唯一的。Symbol 通常用来表示一个名字或标识符。
+      
+**** boolean
+
+     Ruby 中的 true 和 false 都是对象，它们都是 TrueClass 和 FalseClass 的实例。
+
+     在 Ruby 中，除了 false 和 nil 为假，其他值都为真。
+
+     在 Ruby 代码中，还经常看到 =if obj.present?=  等方法，这些方法是 Rails 提供的，它们是对 Ruby 的扩
+     展。其中，=obj.present?= 方法会判断 obj 是否为 nil 或空字符串或空数组、空散列
+      
+**** 数组
+
+     #+BEGIN_SRC ruby
+       [1, 2, 3]
+       [1, 2, 3].length
+       [1, 2, 3].reverse
+       [1, 2, 3] << 4
+     #+END_SRC
+
+     + 数组中的元素可以是不同类型的对象。
+     + 数组中的元素可以通过索引访问，索引从 0 开始。
+     + 数组中的元素可以通过 << 方法添加到数组的末尾。
+***** 数组的常用方法
+****** each
+        each 方法用于遍历数组中的元素。如：
+         #+BEGIN_SRC ruby
+           [1, 2, 3].each { |i| puts i }
+         #+END_SRC
+****** map
+         map 方法用于对数组中的每个元素执行块中的操作，返回一个新的数组。如：
+           #+BEGIN_SRC ruby
+             [1, 2, 3].map { |i| i * 2 }
+           #+END_SRC
+****** select
+         select 方法用于从数组中选择满足条件的元素，返回一个新的数组。如：
+           #+BEGIN_SRC ruby
+             [1, 2, 3].select { |i| i > 1 }
+           #+END_SRC
+****** reduce
+         reduce 方法用于对数组中的元素进行累加。如：
+           #+BEGIN_SRC ruby
+             [1, 2, 3].reduce { |sum, i| sum + i }
+           #+END_SRC
+****** each_with_index
+         each_with_index 方法用于遍历数组中的元素，同时获取元素的索引。如：
+           #+BEGIN_SRC ruby
+             [1, 2, 3].each_with_index { |i, index| puts "#{index}: #{i}" }
+           #+END_SRC
+            
+****** each_with_object
+         each_with_object 方法用于遍历数组中的元素，同时传递一个对象。如：
+           #+BEGIN_SRC ruby
+             [person1, person2].each_with_object({}) { |person, hash| hash[person.name] = person.age }
+           #+END_SRC
+****** group_by
+         group_by 方法用于根据块中的条件对数组中的元素进行分组。如：
+           #+BEGIN_SRC ruby
+             [person1, person2].group_by { |person| person.gender }
+           #+END_SRC
+****** in_groups
+         in_groups 方法用于将数组分成若干组。如：
+           #+BEGIN_SRC ruby
+             [1, 2, 3, 4, 5].in_groups(2)
+           #+END_SRC
+****** in_groups_of
+         in_groups_of 方法用于将数组分成若干组，每组包含指定个数的元素。如：
+           #+BEGIN_SRC ruby
+             [1, 2, 3, 4, 5].in_groups_of(2)
+           #+END_SRC
+**** 哈希
+
+     哈希是一种键值对的数据结构，类似于 Java 中的 Map。如：
+
+     #+BEGIN_SRC ruby
+       { "name" => "Jack", "age" => 20 }
+       { :name => "Jack", :age => 20 }
+       { name: "Jack", age: 20 }
+     #+END_SRC
+
+     上述代码中：
+     1. 第一行的哈希中的键和值都是字符串。
+     2. 第二行的哈希中的键是 Symbol，值是字符串。
+     3. 第三行的哈希中的键是 Symbol，值是字符串，也就是说在一个哈希中， =key: value= 的形式等价于 ~:key => value~ 的形式。
+
+     4. 哈希是一种键值对的集合。
+     5. 哈希中的键和值可以是任意类型的对象。
+     6. 哈希中的键是唯一的。
+***** 哈希的常用方法
+****** each
+        each 方法用于遍历哈希中的键值对。如：
+         #+BEGIN_SRC ruby
+           { name: "Jack", age: 20 }.each { |key, value| puts "#{key}: #{value}" }
+         #+END_SRC
+****** map
+         map 方法用于对哈希中的每个键值对执行块中的操作，返回一个新的数组。如：
+           #+BEGIN_SRC ruby
+             { name: "Jack", age: 20 }.map { |key, value| value }
+           #+END_SRC
+****** select
+         select 方法用于从哈希中选择满足条件的键值对，返回一个新的哈希。如：
+           #+BEGIN_SRC ruby
+             { name: "Jack", age: 20 }.select { |key, value| value > 18 }
+           #+END_SRC
+****** keys
+         keys 方法用于获取哈希中的所有键。如：
+           #+BEGIN_SRC ruby
+             { name: "Jack", age: 20 }.keys
+           #+END_SRC
+****** values
+         values 方法用于获取哈希中的所有值。如：
+           #+BEGIN_SRC ruby
+             { name: "Jack", age: 20 }.values
+           #+END_SRC
+****** merge
+         merge 方法用于合并两个哈希。如：
+           #+BEGIN_SRC ruby
+             { name: "Jack" }.merge({ age: 20 })
+           #+END_SRC
+****** merge!
+         merge! 方法用于将另一个哈希合并到当前哈希中。如：
+           #+BEGIN_SRC ruby
+             { name: "Jack" }.merge!({ age: 20 })
+           #+END_SRC
+*** 类的基础知识
+**** 初始化函数
+
+     初始化函数相当于 Java 中的构造函数，它是在创建对象时自动调用的函数。在 Ruby 中，初始化函数的名字是 =initialize=
+      
+     #+BEGIN_SRC ruby
+       class Person
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+       end
+     #+END_SRC
+**** 属性和 getter/setter
+
+     上例中的 =@name= 和 =@age= 是 Person 类的属性，它们是实例变量，只能在类的内部访问。如果要在类的外部访问这两个属性，需要提供 getter 和 setter 方法。如：
+
+     #+BEGIN_SRC ruby
+       class Person
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+        
+         def name
+           @name
+         end
+        
+         def name=(name)
+           @name = name
+         end
+       end
+        
+       p = Person.new("Jack", 20)
+       puts p.name  # 这是调用 getter 方法, 而不是直接访问实例变量
+       p.name = "Tom"  # 这是调用 setter 方法, 而不是直接设置实例变量
+     #+END_SRC
+
+     上述代码中， =name= 方法是 getter 方法， =name= 方法是 setter 方法。Ruby 提供了一种更简洁的方式来定义 getter 和 setter 方法，如：
+
+     #+BEGIN_SRC ruby
+       class Person
+         attr_accessor :name
+
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+       end
+     #+END_SRC
+
+     如果只需要 getter 方法，可以使用 =attr= 活 =attr_reader= 方法；如果只需要 setter 方法，可以使用 =attr_writer= 方法。
+
+     #+BEGIN_SRC ruby
+       class Person
+         attr :name
+         attr_writer :name
+
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+       end
+     #+END_SRC
+      
+**** 继承
+
+     和 Java 一样，Ruby 也是只支持单继承的。Ruby 使用 =<= 操作符来表示继承关系。如：
+
+     #+BEGIN_SRC ruby
+       class Person
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+       end
+
+       class Student < Person
+         def initialize(name, age, school)
+           super(name, age)
+           @school = school
+         end
+       end
+     #+END_SRC
+      
+**** 静态方法
+
+     Ruby 中的静态方法使用 =self= 关键字来定义。如：
+
+     #+BEGIN_SRC ruby
+       class Person
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+
+         def self.say_hello
+           puts "Hello"
+         end
+       end
+     #+END_SRC
+
+     上述代码中， =say_hello= 是一个静态方法，可以通过 Person 类直接调用。 还有另一种常用的定义静态方法的方式，如：
+
+     #+BEGIN_SRC ruby
+       class Person
+         def initialize(name, age)
+           @name = name
+           @age = age
+         end
+        
+         class << self
+           def say_hello
+             puts "Hello"
+           end
+         end
+       end
+     #+END_SRC
+      
+*** 类可以重新打开
+
+    Ruby 的类可以重新「打开」，即在原有的类定义上追加新的方法或属性、覆盖已有的方法、属性。如:
+     
+    #+BEGIN_SRC ruby
+      class Person < ActiveRecord::Base   # 定义了一个 Person 类，它是 ActiveRecord::Base 的子类
+        def say_hello(message, name)
+          puts "#{name}, #{message}"
+        end
+      end
+       
+       
+      class Person   # 重新打开 Person 类，这里添加了一个 sleep 方法，并且 Person 仍然有 say_hello 方法，并且它仍然是 ActiveRecord::Base 的子类
+        has_many :books    # has_many 是从 ActiveRecord::Base 继承来的类方法（静态方法）, 类方法可以直接在类体中调用（就是和定义方法的同一层级），而实例方法则不可以在类体中调用
+        def sleep(time_secs)
+          ...
+        end
+      end
+    #+END_SRC
+     
+*** 混入和 Enumerable
+
+    Ruby 虽然和 Java 一样只支持单继承，但是 Ruby 提供了一种叫做「混入」的机制，可以在类中引入模块（module），从而实现多继承的效果。如：
+
+     #+BEGIN_SRC ruby
+       module MyModule
+         def say_hello
+           puts "Hello"
+         end
+       end
+        
+       class Person
+         def xxx
+         end
+       end
+        
+       class Student < Person
+         include MyModule
+       end
+    #+END_SRC
+     
+    现在 Student 类既继承了 Person 类的 xxx 方法，又引入了 MyModule 模块的 say_hello 方法。
+
+    因为模块（module关键字定义的部分）和类不同的是，模块不能被实例化，也就是不能创建模块的对象。所以混入模块，只会继承模块的方法，而不会继承模块的属性，从而避免了多继承的问题。
+
+    Ruby 标准库中的 Enumerable 模块就是一个很好的例子。Enumerable 模块提供了很多方法，如 =each=、=map=、=select=、=reject=、=detect=、=sort= 等，这些方法可以被任何实现了 =each= 方法的类包含进来，从而实现了类似于 Java 中的 Collection 接口的效果。如：
+
+     #+BEGIN_SRC ruby
+       class MyCollection
+         include Enumerable
+         def each
+           ...
+         end
+       end
+     #+END_SRC
+
+     现在 MyCollection 类就可以像数组一样使用 =map=、=select=、=reject=、=detect=、=sort= 等方法了。而数组实际上也是实现了 =each= 方法并混入了 Enumerable 模块的类。
+     
+*** Kernel 模块
+
+     Ruby 中的 Kernel 模块是一个特殊的模块，它包含了很多常用的方法，这些方法可以直接在任何地方调用，而不需要通过模块名或类名来调用。如：
+  
+     #+BEGIN_SRC ruby
+       puts "Hello"
+       sleep 1
+     #+END_SRC
+  
+     上述代码中的 =puts= 和 =sleep= 方法都是 Kernel 模块中的方法，可以直接调用。
+  
+     事实上，Ruby 中的很多方法都是定义在 Kernel 模块中的，这是因为 Ruby 中的所有类都是 Object 类的子类，而 Object 类又混入了 Kernel 模块，所以所有的类都可以直接调用 Kernel 模块中的方法。
+
+     如果你希望定义一个全局方法，可以直接定义在 Kernel 模块中，这样就可以在任何地方调用了。如：
+
+     #+BEGIN_SRC ruby
+       module Kernel
+         def say_hello
+           puts "Hello"
+         end
+       end
+        
+       say_hello
+     #+END_SRC
+     
+*** Block 和 Proc
+
+    Java 8 中引入了 Lambda 表达式，Ruby 中的 Block 和 Proc 与之类似，都是相当于一个函数对象。
+
+**** Block
+
+     Block 并不是一个对象，而是一段代码块，是原生的语法元素、可以在方法调用时传递给方法。如：
+
+     #+BEGIN_SRC ruby
+       def say_hello
+         puts "Hello"
+         yield if block_given?  # block_given? 用于判断在调用这个函数时，是否使用了 block, yield 会执行传递给 say_hello 方法的 Block
+       end
+        
+       say_hello # 输出 "Hello"
+        
+       say_hello do
+         puts "World"
+       end   # 输出 "Hello" 和 "World"
+     #+END_SRC
+
+     也可以使用 花括号 代替 do/end：
+
+     #+BEGIN_SRC ruby
+       say_hello { puts "World" }  # 输出 "Hello" 和 "World"
+     #+END_SRC
+
+**** Proc
+      
+     proc 看起来和 Block 类似，但是 proc 是一个对象，可以赋值给变量，也可以作为参数传递给方法。如：
+
+     #+BEGIN_SRC ruby
+       my_proc = Proc.new { puts "Hello" }
+       my_proc.call  # 输出 "Hello"
+        
+       def say_hello(block)
+         block.call
+       end
+        
+       say_hello(my_proc)  # 输出 "Hello"
+     #+END_SRC
+
+***** 将 Block 转换为 Proc
+
+     有时候我们需要将 Block 转换为 Proc 对象，可以使用 & 符号：
+
+     #+BEGIN_SRC ruby
+       def say_hello(&blk)
+         blk.call
+       end
+        
+       say_hello { puts "Hello" }  # 输出 "Hello"
+     #+END_SRC
+
+     上面的代码中，&blk 会将传递给 say_hello 方法的 Block 转换为 Proc 对象。
+
+       
+***** 其他定义 Proc 的方式
+****** lambda
+          
+       lambda 是 Proc 的一种特殊形式，可以使用 lambda 方法定义一个 Proc 对象：
+  
+       #+BEGIN_SRC ruby
+         my_proc = lambda { puts "Hello" }
+         my_proc.call  # 输出 "Hello"
+       #+END_SRC
+
+       lambda 定义的 Proc 和普通的 Proc 的区别在于，lambda 会检查传递给它的参数个数是否正确，而普通的 Proc 不会。如：
+
+       #+BEGIN_SRC ruby
+         my_proc = Proc.new { |a, b| puts a + b }
+         my_proc.call(1)  # 输出 1
+          
+         my_proc = lambda { |a, b| puts a + b }
+         my_proc.call(1)  # 报错
+****** ->
+
+       -> 是 lambda 的一种简写形式，可以用来定义一个 Proc 对象：
+
+       #+BEGIN_SRC ruby
+         my_proc = -> { puts "Hello" }
+         my_proc.call  # 输出 "Hello"
+       #+END_SRC
+***** =&:my_method=
+
+       有时候我们会看到这样的写法：
+
+       #+BEGIN_SRC ruby
+         p1 = Person.new
+         p2 = Person.new
+          
+         [p1, p2].each(&:say_hello)
+       #+END_SRC
+
+       这里的 =&:say_hello= 实际上是将 =:say_hello= Symbol对象转换为 Proc 对象，然后传递给 each 方法。这种写法等价于：
+
+       #+BEGIN_SRC ruby
+         [p1, p2].each { |p| p.say_hello }
+       #+END_SRC
+
+       这种用法看起来很像 Java 8 中的方法引用，但实际上是 Ruby 的一个语法糖。
+
+       那么这是如何将 Symbol 对象转换为 Proc 对象呢？实际上 =&= 后面跟一个对象，就是调用这个对象的 =to_proc= 方法，将其转换为 Proc 对象。如：
+
+       =&:say_hello= 就是将调用 =:say_hello= 这个 Symbol 对象的 to_proc 方法，而 Symbol 的 =to_proc= 方法是这样定义的：
+
+       #+BEGIN_SRC ruby
+         class Symbol
+           def to_proc
+             Proc.new { |obj, *args| obj.send(self, *args) }
+           end
+         end
+       #+END_SRC
+        
+*** 元编程
+
+     元编程是指在运行时动态地创建类和方法，或者修改现有类和方法的技术。Ruby 是一种动态语言，非常适合进行元编程。
+
+     可以理解为有点像 Java 中的反射机制，但是 Ruby 的元编程更加强大和灵活。
+
+     Ruby 提供了一些方法来动态地定义类和方法，如 =method_missing=, =define_method=, =class_eval=, =instance_eval= 等。
+
+     通过元编程，我们可以实现很多功能，如动态地创建类和方法，动态地修改类和方法，动态地调用方法等。
+
+     虽然你在编码时有可能不会用到元编程，但是了解元编程的原理和技术，可以帮助你更好地理解 Rails 等 Ruby 库或者框架的特性和机制。
+
+     更多关于元编程的内容，可以参考 「Ruby 元编程」 这本书。
+
+**** =method_missing=
+
+       =method_missing= 是 Ruby 中一个非常重要的方法，当调用一个对象不存在的方法时，Ruby 会调用这个对象的 =method_missing= 方法。
+
+       通过重写 =method_missing= 方法，我们可以实现很多功能，如动态地创建方法，动态地调用方法等。
+
+       例如，我们可以定义一个类，当调用这个类的不存在的方法时，输出方法名：
+
+       #+BEGIN_SRC ruby
+         class MyClass
+           def method_missing(name, *args)
+             puts "You called #{name} with #{args.inspect}"
+           end
+         end
+
+         obj = MyClass.new
+         obj.hello(1, 2, 3)  # 输出 "You called hello with [1, 2, 3]"
+       #+END_SRC
+
+       那么 =method_missing= 方法有哪些实际用途呢？考虑我们定义一个 ActiveRecord 模型:
+
+       #+BEGIN_SRC ruby
+         class User < ActiveRecord::Base
+         end
+       #+END_SRC
+
+       ActiveRecord 库会根据约定的命名规则，将 User 类和数据库中的 users 表对应起来，当我们调用 User 类的一些方法：
+
+       #+BEGIN_SRC ruby
+         user = User.find(1)
+         user.username = "Tom"
+       #+END_SRC
+
+       那么 =user.username= setter 方法是如何实现的呢？如果我们是 ActiveRecord 库的作者，我们就可以使用 =method_missing= 方法来实现这些方法：
+
+       #+BEGIN_SRC ruby
+         class ActiveRecord::Base
+           def method_missing(name, *args)
+             if db_columns.include_by_name?(name)  # 判断数据库中是否有这个字段
+               db_columns.write_by_column_name(name, args.first)  # 写入数据库
+             else
+               super  # 调用父类的 method_missing 方法
+             end
+           end
+         end
+       #+END_SRC
+
+**** =define_method=
+
+       =define_method= 方法可以动态地定义方法，它接受一个方法名和一个块，然后定义一个方法。
+
+       例如，我们可以定义一个类，动态地定义一个方法：
+
+       #+BEGIN_SRC ruby
+         class MyClass
+           define_method :hello do |name|
+             puts "Hello, #{name}!"
+           end
+         end
+
+         obj = MyClass.new
+         obj.hello("Tom")  # 输出 "Hello, Tom!"
+       #+END_SRC
+
+       和 =method_missing= 方法不同， =define_method= 方法是在类对象上调用的，而且定义好之后，这个方法就会一直存在，直到这个类被销毁。而 =method_missing= 方法是在实例对象上调用的，
+       并且每次调用不存在的方法时，都会调用 =method_missing= 方法。
+
+       在 =method_missing= 的那个示例中，考虑到性能问题，不希望每次调用 ~user.username=~ 的时候都调用 =method_missing= 方法，我们可以使用 =define_method= 方法来定义这个方法：
+
+       #+BEGIN_SRC ruby
+         class ActiveRecord::Base
+           def method_missing(name, *args)
+             if db_columns.include_by_name?(name)  # 判断数据库中是否有这个字段
+               self.class.send(:define_method, name) do |value|
+                 db_columns.write_by_column_name(name, value)  # 写入数据库
+               end
+               send(name, args.first)  # 调用刚刚定义的方法, 而且这样一来，下次调用这个方法就不会再调用 method_missing 方法了
+             else
+               super  # 调用父类的 method_missing 方法
+             end
+           end
+         end
+       #+END_SRC
+
+**** =class_eval=
+
+       =class_eval= 方法可以动态地定义类的方法，它接受一个字符串作为参数，然后定义一个方法。
+
+       例如，我们可以定义一个类，动态地定义一个方法：
+
+       #+BEGIN_SRC ruby
+         class MyClass
+           class_eval %{
+             def hello(name)
+               puts "Hello, \#{name}!"
+             end
+           }
+         end
+
+         obj = MyClass.new
+         obj.hello("Tom")  # 输出 "Hello, Tom!"
+       #+END_SRC
+
+**** =instance_eval=
+
+       =instance_eval= 方法可以动态地定义实例对象的方法，它接受一个字符串作为参数，然后定义一个方法。
+
+       例如，我们可以定义一个类，动态地定义一个方法：
+
+       #+BEGIN_SRC ruby
+         class MyClass
+           def initialize(name)
+             @name = name
+           end
+         end
+          
+         obj = MyClass.new("Tom")
+         obj.instance_eval %{
+           def hello
+             puts "Hello, \#{@name}!"
+           end
+         }
+          
+         obj.hello  # 输出 "Hello, Tom!"
+          
+         obj2 = MyClass.new("Jerry")
+         obj2.hello  # 报错, 因为 obj2 没有定义 hello 方法, 请自行搜索学习 Ruby 中的 singleton class 的概念
+       #+END_SRC
+      
+**** =instance_exec=
+
+       =instance_exec= 方法和 =instance_eval= 方法类似，但是它可以接受块作为参数。
+
+       例如，我们可以定义一个类，动态地定义一个方法：
+
+       #+BEGIN_SRC ruby
+         class MyClass
+           def initialize(name)
+             @name = name
+           end
+         end
+
+         obj = MyClass.new("Tom")
+         obj.instance_exec("Jerry") do |name|
+           puts "Hello, #{name}!"
+         end  # 输出 "Hello, Jerry!", 这里定义的仍然是一个 singleton method
+       #+end_src
+
+
+       还可以借助 =instance_exec= 方法来动态定义一个普通的实例方法：
+
+       #+BEGIN_SRC ruby
+         class MyClass
+           def initialize(name)
+             @name = name
+           end
+         end
+
+         MyClass.instance_exec do
+           define_method :hello do
+             puts "Hello, #{@name}!"
+           end
+         end
+
+         obj = MyClass.new("Tom")
+         obj.hello  # 输出 "Hello, Tom!"
+       #+END_SRC
+          
+        
+
+          
+**** =Class.new=
+
+  示例：
+
+  #+BEGIN_SRC ruby
+    Employee = Class.new(Person) do
+      def hello
+        ...
+      end
+    end
+
+    e = Employee.new
+    e.hello
+  #+END_SRC
+
+  Person 成为 Employee 的父类
+
