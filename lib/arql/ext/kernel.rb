@@ -5,67 +5,11 @@ module Kernel
   include ::Arql::Concerns::GlobalDataDefinition
 
   def q(sql)
-    ActiveRecord::Base.connection.exec_query(sql)
-  end
-
-  def print_tables(format = :md)
-    require 'terminal-table'
-
-    tables = ActiveRecord::Base.connection.tables.map do |table_name|
-      {
-        table: table_name,
-        table_comment: ActiveRecord::Base.connection.table_comment(table_name) || '',
-        columns: ::ActiveRecord::Base.connection.columns(table_name)
-      }
+    if Arql::App.instance.environments.size > 1
+      $stderr.puts "Multiple environments are defined. Please use Namespace::q() instread, where Namespace is the namespace module of one of the environments."
+      return
     end
-
-    outputs = tables.map do |table|
-      table_name = table[:table]
-      table_comment = table[:table_comment]
-      case format
-      when :md
-        "# #{table_name} #{table_comment}\n\n" +
-          Terminal::Table.new { |t|
-          t.headings = ['PK', 'Name', 'SQL Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
-          t.rows = table[:columns].map { |column|
-            pk = if [::ActiveRecord::Base.connection.primary_key(table_name)].flatten.include?(column)
-                   'Y'
-                 else
-                   ''
-                 end
-            [pk, "`#{column.name}`", column.sql_type, column.sql_type_metadata.limit || '', column.sql_type_metadata.precision || '',
-             column.sql_type_metadata.scale || '', column.default || '', column.null, column.comment || '']
-          }
-          t.style = {
-            border_top: false,
-            border_bottom: false,
-            border_i: '|'
-          }
-        }.to_s.lines.map { |l| '  ' + l }.join
-      when :org
-        "* #{table_name} #{table_comment}\n\n" +
-          Terminal::Table.new { |t|
-          t.headings = ['PK', 'Name', 'SQL Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
-          t.rows = table[:columns].map { |column|
-            pk = if [::ActiveRecord::Base.connection.primary_key(table_name)].flatten.include?(column)
-                   'Y'
-                 else
-                   ''
-                 end
-            [pk, "=#{column.name}=", column.sql_type, column.sql_type_metadata.limit || '', column.sql_type_metadata.precision || '',
-             column.sql_type_metadata.scale || '', column.default || '', column.null, column.comment || '']
-          }
-          t.style = {
-            border_top: false,
-            border_bottom: false,
-          }
-        }.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-      when :sql
-        "-- Table: #{table_name}\n\n" + ActiveRecord::Base.connection.exec_query("show create table `#{table_name}`").rows.last.last + ';'
-      end
-    end
-
-    outputs.each { |out| puts out; puts }
+    Arql::App.instance.definitions.first.connection.exec_query(sql)
   end
 
   def generate_csv(filename, **options, &block)
@@ -113,4 +57,63 @@ module Kernel
     JSON.parse(IO.read(File.expand_path(filename)))
   end
 
+  def within_namespace(namespace_pattern, &blk)
+    if namespace_pattern.is_a?(Module)
+      namespace_pattern.module_eval(&blk)
+      return
+    end
+    definition = Arql::App.instance.definitions.find do |_, defi|
+      case namespace_pattern
+      when Symbol
+        defi.namespace.to_s == namespace_pattern.to_s
+      when String
+        defi.namespace.to_s == namespace_pattern
+      when Regexp
+        defi.namespace.to_s =~ namespace_pattern
+      end
+    end
+    if definition
+      definition.last.namespace_module.module_eval(&blk)
+      return
+    end
+
+    $stderr.puts "Namespace #{namespace_pattern.inspect} not found"
+  end
+
+  def within_env(env_name_pattern, &blk)
+    definition = Arql::App.instance.definitions.find do |env_name, defi|
+      case env_name_pattern
+      when Symbol
+        env_name == env_name_pattern.to_s
+      when String
+        env_name == env_name_pattern
+      when Regexp
+        env_name =~ env_name_pattern
+      end
+    end
+    if definition
+      definition.last.namespace_module.module_eval(&blk)
+      return
+    end
+
+    $stderr.puts "Environment #{env_name_pattern.inspect} not found"
+  end
+
+  def models
+    Arql::App.instance.definitions.flat_map do |_, definition|
+      definition.namespace_module.models
+    end
+  end
+
+  def table_names
+    Arql::App.instance.definitions.flat_map do |_, definition|
+      definition.namespace_module.tables
+    end
+  end
+
+  def model_names
+    Arql::App.instance.definitions.flat_map do |_, definition|
+      definition.namespace_module.model_names
+    end
+  end
 end

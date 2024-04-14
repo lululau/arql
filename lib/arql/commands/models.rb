@@ -3,84 +3,129 @@ require 'terminal-table'
 module Arql::Commands
   module Models
     class << self
-      def models
-        t = []
-        t << ['Table Name', 'Model Class', 'Abbr', 'Comment']
-        t << nil
-        Arql::Definition.models.each do |definition|
-          t << [definition[:table], definition[:model].name, definition[:abbr] || '', definition[:comment] || '']
-        end
-        t
-      end
-
-      def models_table(table_regexp=nil, column_regexp=nil)
-        if column_regexp.nil?
-          Terminal::Table.new do |t|
-            models.each_with_index { |row, idx| t << (row || :separator) if row.nil? ||
-              table_regexp.nil? ||
-              idx.zero? ||
-              row.any? { |e| e =~ table_regexp }
-            }
-          end
-        else
-          connection = ::ActiveRecord::Base.connection
-          table = Terminal::Table.new do |t|
-            t << ['PK', 'Table', 'Model', 'Name', 'SQL Type', 'Ruby Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
-            t << :separator
-            Arql::Definition.models.each do |definition|
-              model_class = definition[:model]
-              matched_columns = model_class.columns.select { |column| column.name =~ column_regexp || column.comment =~ column_regexp }
-              next if matched_columns.empty?
-              matched_columns.each do |column|
-                pk = if [connection.primary_key(definition[:table])].flatten.include?(column.name)
-                       'Y'
-                     else
-                       ''
-                     end
-                t << [pk, definition[:table], model_class.name, column.name, column.sql_type,
-                      column.sql_type_metadata.type, column.sql_type_metadata.limit || '',
-                      column.sql_type_metadata.precision || '', column.sql_type_metadata.scale || '', column.default || '',
-                      column.null, "#{definition[:comment]} - #{column.comment}"]
-              end
+      def filter_tables(env_name, definition, format, table_regexp=nil)
+        result = ''
+        result << '-- ' if format == 'sql'
+        result << "Environment: #{env_name}\n"
+        result << "------------------------------\n\n"
+        if format == 'sql'
+          definition.models.each do |model|
+            if table_regexp? || ( model[:table] =~ table_regexp || model[:comment] =~ table_regexp )
+              result << "-- Table: #{table_name}\n\n"
+              result << definition.connection.exec_query("show create table `#{table_name}`").rows.last.last + ';'
             end
           end
-          puts table
+        else
+          Terminal::Table.new do |t|
+            t.style = table_style_for_format(format)
+            t << ['Table Name', 'Model Class', 'Abbr', 'Comment']
+            t << :separator
+            definition.models.each do |model|
+              if table_regexp.nil? || ( model[:table] =~ table_regexp || model[:comment] =~ table_regexp )
+                t << [model[:table], model[:model].name, model[:abbr] || '', model[:comment] || '']
+              end
+            end
+          end.try { |e|
+            case format
+            when 'md'
+              result << e.to_s.lines.map { |l| '  ' + l }.join
+            when 'org'
+              result << e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
+            else
+              result << e.to_s
+            end
+          }
+        end
+        result
+      end
+
+      def filter_columns(env_name, definition, format, column_regexp=nil)
+        result = ''
+        result << '-- ' if format == 'sql'
+        result << "Environment: #{env_name}\n"
+        result << "------------------------------\n\n"
+        Terminal::Table.new do |t|
+          t.style = table_style_for_format(format)
+          t << ['Table', 'Model', 'Name', 'SQL Type', 'Ruby Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
+          t << :separator
+          definition.models.each do |model_def|
+            model_class = model_def[:model]
+            matched_columns = model_class.columns.select { |column| column.name =~ column_regexp || column.comment =~ column_regexp }
+            next if matched_columns.empty?
+            matched_columns.each do |column|
+              t << [model_def[:table], model_class.name, column.name, column.sql_type,
+                    column.sql_type_metadata.type, column.sql_type_metadata.limit || '',
+                    column.sql_type_metadata.precision || '', column.sql_type_metadata.scale || '', column.default || '',
+                    column.null, "#{model_def[:comment]} - #{column.comment}"]
+            end
+          end
+        end.try { |e|
+          case format
+          when 'md'
+            result << e.to_s.lines.map { |l| '  ' + l }.join
+          when 'org'
+            result << e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
+          else
+            result << e.to_s
+          end
+        }
+        result
+      end
+
+      def table_style_for_format(format)
+        case format
+        when 'md'
+          {
+            border_top: false,
+            border_bottom: false,
+            border_i: '|'
+          }
+        when 'org'
+          {
+            border_top: false,
+            border_bottom: false,
+          }
+        else
+          {}
         end
       end
     end
   end
 
-  Pry.commands.block_command 'm' do |arg|
-    puts
-    if arg.start_with?('c=') or arg.start_with?('column=')
-      column_regexp = arg.sub(/^c(olumn)?=/, '')
-      Models::models_table(nil, column_regexp.try { |e| e.start_with?('/') ? eval(e) : Regexp.new(e) })
-    else
-      puts Models::models_table(arg.try { |e| e.start_with?('/') ? eval(e) : Regexp.new(e) }, nil)
+  Pry.commands.create_command 'm' do
+    description 'List models or columns (specified by `-c`): m [-e env_name_regexp] -c [column_regexp] [table_regexp]'
+
+    def options(opt)
+      opt.on '-e', '--env', 'Environment name regexp', argument: true, as: String, required: false, default: nil
+      opt.on '-f', '--format', 'Table format, available: terminal(default), md, org, sql', argument: true, as: String, required: false, default: 'terminal'
+      opt.on '-c', '--column', 'Column name regexp', argument: true, as: String, required: false, default: nil
     end
+
+    def process
+
+      if opts[:format] == 'sql' && opts[:column]
+        output.puts 'SQL format is not supported for column listing'
+        return
+      end
+
+      env_names = opts[:env].try {|e| [e]}.presence || Arql::App.environments
+      env_names = env_names.map { |e| e.start_with?('/') ? eval(e) : Regexp.new(e) }
+
+      Arql::App.instance.definitions.each do |env_name, definition|
+        next unless env_names.any? { |e| env_name =~ e }
+
+        output.puts
+        if opts[:column]
+          column_regexp = opts[:column]
+          output.puts Models::filter_columns(env_name, definition, opts[:format], column_regexp.try { |e| e.start_with?('/') ? eval(e) : Regexp.new(e) })
+        else
+          table_regexp = args&.first
+          output.puts Models::filter_tables(env_name, definition, opts[:format], table_regexp.try { |e| e.start_with?('/') ? eval(e) : Regexp.new(e) })
+        end
+      end
+    end
+
   end
 
   Pry.commands.alias_command 'l', 'm'
-end
-
-module Kernel
-  def models
-    Arql::Commands::Models::models
-  end
-
-  def tables
-    models
-  end
-
-  def model_classes
-    ::ArqlModel.subclasses
-  end
-
-  def table_names
-    models[2..-1].map(&:first)
-  end
-
-  def model_names
-    models[2..-1].map(&:second)
-  end
 end

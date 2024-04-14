@@ -2,7 +2,9 @@ module Arql::Commands
   module Redefine
     class << self
       def redefine
-        Arql::Definition.redefine
+        Arql::App.instance.definitions.each do |_, definition|
+          definition.redefine
+        end
       end
     end
 

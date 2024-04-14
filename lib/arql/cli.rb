@@ -19,7 +19,7 @@ module Arql
           opts.banner = <<~EOF
           Usage: arql [options] [ruby file]
 
-            If neither [ruby file] nor -e option specified, and STDIN is not a tty, a Pry REPL will be launched,
+            If neither [ruby file] nor -e option specified, and STDIN is a tty, a Pry REPL will be launched,
             otherwise the specified ruby file or -e option value or ruby code read from STDIN will be run, and no REPL launched
 
           EOF
@@ -32,8 +32,12 @@ module Arql
             @options.initializer = initializer
           end
 
-          opts.on('-eENVIRON', '--env=ENVIRON', 'Specify config environment.') do |env|
-            @options.env = env
+          opts.on('-eENVIRON', '--env=ENVIRON', 'Specify config environment, multiple environments allowed, separated by comma') do |env_names|
+            @options.environments = env_names.split(',')
+            if @options.environments.any? { |e| e =~ /^default|arql$/i }
+              $stderr.warn '[default, arql] are reserved environment names, please use another name'
+              exit(1)
+            end
           end
 
           opts.on('-aDB_ADAPTER', '--db-adapter=DB_ADAPTER', 'Specify database Adapter, default is sqlite3') do |db_adapter|
@@ -117,24 +121,36 @@ module Arql
         end.parse!
 
         @options.args = ARGV
+
+        if @options.environments&.size&.positive? && any_database_options?
+          $stderr.puts "Following options are not allowed when using multiple environments specified: #{database_options.join(', ')}"
+          $stderr.puts "    #{database_options.join(', ')}"
+          exit(1)
+        end
+      end
+
+      def any_database_options?
+        %i[adapter host port database username
+           password encoding pool ssh].reduce(false) do |acc, opt|
+          acc || @options.send(opt).present?
+        end
+      end
+
+      def database_options
+        ['--db-adapter', '--db-host', '--db-port', '--db-name', '--db-user', '--db-password',
+         '--db-encoding', '--db-pool', '--ssh-host', '--ssh-port', '--ssh-user', '--ssh-password', '--ssh-local-port']
       end
 
       def default_config_file
-        conf = File.expand_path('~/.arql.yml')
-        return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.yaml')
-        return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.d/init.yml')
-        return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.d/init.yaml')
-        return conf if File.file?(conf)
+        ['~/.arql.yml', '~/.arql.yaml', '~/.arql.d/init.yml', '~/.arql.d/init.yaml'].find { |f|
+          File.file?(File.expand_path(f))
+        }.try { |f| File.expand_path(f) }
       end
 
       def default_initializer
-        conf = File.expand_path('~/.arql.rb')
-        return conf if File.file?(conf)
-        conf = File.expand_path('~/.arql.d/init.rb')
-        return conf if File.file?(conf)
+        ['~/.arql.rb', '~/.arql.d/init.rb',].find { |f|
+          File.file?(File.expand_path(f))
+        }.try { |f| File.expand_path(f) }
       end
     end
   end

@@ -2,13 +2,17 @@ module Arql::Commands
   module Reconnect
     class << self
       def reconnect
-        Arql::SSHProxy.reconnect if Arql::App.config[:ssh].present?
-        ActiveRecord::Base.connection.reconnect! unless ActiveRecord::Base.connection.active?
+        Arql::App.instance.definitions.each do |_, definition|
+          definition.ssh_proxy.reconnect if definition.options[:ssh].present?
+          definition.connection.reconnect! unless definition.connection.active?
+        end
       end
 
       def reconnect!
-        Arql::SSHProxy.reconnect! if Arql::App.config[:ssh].present?
-        ActiveRecord::Base.connection.reconnect!
+        Arql::App.instance.definitions.each do |_, definition|
+          definition.ssh_proxy.reconnect if definition.options[:ssh].present?
+          definition.connection.reconnect!
+        end
       end
     end
 

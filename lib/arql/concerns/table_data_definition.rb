@@ -91,7 +91,7 @@ module Arql
         #  Shape.add_column(:triangle, 'polygon')
         #  # ALTER TABLE "shapes" ADD "triangle" polygon
         def add_column(column_name, type, **options)
-          ActiveRecord::Base.connection.add_column(table_name, column_name, type, **options)
+          connection.add_column(table_name, column_name, type, **options)
         end
 
         # Changes the column's definition according to the new options.
@@ -101,7 +101,7 @@ module Arql
         #   Post.change_column(:description, :text)
         #
         def change_column(column_name, type, options = {})
-          ActiveRecord::Base.connection.change_column(table_name, column_name, type, **options)
+          connection.change_column(table_name, column_name, type, **options)
         end
 
         # Removes the column from the table definition.
@@ -113,7 +113,7 @@ module Arql
         # In that case, +type+ and +options+ will be used by #add_column.
         # Indexes on the column are automatically removed.
         def remove_column(column_name, type = nil, **options)
-          ActiveRecord::Base.connection.remove_column(table_name, column_name, type, **options)
+          connection.remove_column(table_name, column_name, type, **options)
         end
 
         # Adds a new index to the table. +column_name+ can be a single Symbol, or
@@ -229,7 +229,7 @@ module Arql
         #
         # For more information see the {"Transactional Migrations" section}[rdoc-ref:Migration].
         def add_index(column_name, options = {})
-          ActiveRecord::Base.connection.add_index(table_name, column_name, **options)
+          connection.add_index(table_name, column_name, **options)
         end
 
         # Adds a new foreign key.
@@ -277,7 +277,7 @@ module Arql
         # [<tt>:validate</tt>]
         #   (PostgreSQL only) Specify whether or not the constraint should be validated. Defaults to +true+.
         def add_foreign_key(to_table, **options)
-          ActiveRecord::Base.connection.add_foreign_key(table_name, to_table, **options)
+          connection.add_foreign_key(table_name, to_table, **options)
         end
 
         # Adds timestamps (+created_at+ and +updated_at+) columns to this table.
@@ -286,7 +286,7 @@ module Arql
         #   Supplier.add_timestamps(null: true)
         #
         def add_timestamps(**options)
-          ActiveRecord::Base.connection.add_timestamps(table_name, **options)
+          connection.add_timestamps(table_name, **options)
         end
 
         # Changes the comment for a column or removes it if +nil+.
@@ -296,7 +296,7 @@ module Arql
         #
         #   Post.change_column_comment(:state, from: "old_comment", to: "new_comment")
         def change_column_comment(column_name, comment_or_changes)
-          ActiveRecord::Base.connection.change_column_comment(table_name, column_name, comment_or_changes)
+          connection.change_column_comment(table_name, column_name, comment_or_changes)
         end
 
         # Sets a new default value for a column:
@@ -314,7 +314,7 @@ module Arql
         #   Post.change_column_default(:state, from: nil, to: "draft")
         #
         def change_column_default(column_name, default_or_changes)
-          ActiveRecord::Base.connection.change_column_default(table_name, column_name, default_or_changes)
+          connection.change_column_default(table_name, column_name, default_or_changes)
         end
 
         # Sets or removes a <tt>NOT NULL</tt> constraint on a column. The +null+ flag
@@ -334,7 +334,7 @@ module Arql
         #
         # Please note the fourth argument does not set a column's default.
         def change_column_null(column_name, null, default = nil)
-          ActiveRecord::Base.connection.change_column_null(table_name, column_name, null, default)
+          connection.change_column_null(table_name, column_name, null, default)
         end
 
         # Renames a column.
@@ -342,7 +342,7 @@ module Arql
         #   Supplier.rename_column(:description, :name)
         #
         def rename_column(column_name, new_column_name)
-          ActiveRecord::Base.connection.rename_column(table_name, column_name, new_column_name)
+          connection.rename_column(table_name, column_name, new_column_name)
         end
 
         # A block for changing columns in +table+.
@@ -418,7 +418,7 @@ module Arql
         #
         # See also Table for details on all of the various column transformations.
         def change_table(**options)
-          ActiveRecord::Base.connection.change_table(table_name, **options)
+          connection.change_table(table_name, **options)
         end
 
         # Renames a table.
@@ -426,7 +426,7 @@ module Arql
         #   rename_table('octopi')
         #
         def rename_table(new_name)
-          ActiveRecord::Base.connection.rename_table(table_name, new_name)
+          connection.rename_table(table_name, new_name)
         end
 
         # Changes the comment for a table or removes it if +nil+.
@@ -436,7 +436,7 @@ module Arql
         #
         #   Post.change_table_comment(from: "old_comment", to: "new_comment")
         def change_table_comment(comment_or_changes)
-          ActiveRecord::Base.connection.change_table_comment(table_name, comment_or_changes)
+          connection.change_table_comment(table_name, comment_or_changes)
         end
 
         # Drops a table from the database.
@@ -452,13 +452,13 @@ module Arql
         # it can be helpful to provide these in a migration's +change+ method so it can be reverted.
         # In that case, +options+ and the block will be used by #create_table.
         def drop_table(**options)
-          ActiveRecord::Base.connection.drop_table(table_name, **options)
+          connection.drop_table(table_name, **options)
         end
 
         # Returns an array of foreign keys for the given table.
         # The foreign keys are represented as ForeignKeyDefinition objects.
         def foreign_keys
-          ActiveRecord::Base.connection.foreign_keys(table_name)
+          connection.foreign_keys(table_name)
         end
 
         # Removes the given foreign key from the table. Any option parameters provided
@@ -487,7 +487,7 @@ module Arql
         # [<tt>:to_table</tt>]
         #   The name of the table that contains the referenced primary key.
         def remove_foreign_key(to_table = nil, **options)
-          ActiveRecord::Base.connection.remove_foreign_key(table_name, to_table, **options)
+          connection.remove_foreign_key(table_name, to_table, **options)
         end
 
         # Removes the given index from the table.
@@ -518,7 +518,7 @@ module Arql
         #
         # For more information see the {"Transactional Migrations" section}[rdoc-ref:Migration].
         def remove_index(options = {})
-          ActiveRecord::Base.connection.remove_index(table_name, **options)
+          connection.remove_index(table_name, **options)
         end
 
         # Removes the timestamp columns (+created_at+ and +updated_at+) from the table definition.
@@ -526,7 +526,7 @@ module Arql
         #  Supplier.remove_timestamps
         #
         def remove_timestamps(**options)
-          ActiveRecord::Base.connection.remove_timestamps(**options)
+          connection.remove_timestamps(**options)
         end
 
         # Renames an index.
@@ -536,12 +536,12 @@ module Arql
         #   Person.rename_index 'index_people_on_last_name', 'index_users_on_last_name'
         #
         def rename_index(old_name, new_name)
-          ActiveRecord::Base.connection.rename_index(table_name, old_name, new_name)
+          connection.rename_index(table_name, old_name, new_name)
         end
 
         # Returns the table comment that's stored in database metadata.
         def table_comment
-          ActiveRecord::Base.connection.table_comment(table_name)
+          connection.table_comment(table_name)
         end
 
       end

@@ -3,38 +3,47 @@ require 'rainbow'
 module Arql::Commands
   module Info
     class << self
-      def db_info
-        <<~EOF
+      def db_info(env_names)
+        Arql::App.instance.definitions.map do |env_name, definition|
+          next unless env_names.include?(env_name)
+          config = Arql::App.config[:environments][env_name]
+          <<~DB_INFO
 
-        Database Connection Information:
+          #{env_name} Database Connection Information:
 
-            Active:    #{color_boolean(ActiveRecord::Base.connection.active?)}
-            Host:      #{Arql::App.config[:host]}
-            Port:      #{Arql::App.config[:port]}
-            Username:  #{Arql::App.config[:username]}
-            Password:  #{(Arql::App.config[:password] || '').gsub(/./, '*')}
-            Database:  #{Arql::App.config[:database]}
-            Adapter:   #{Arql::App.config[:adapter]}
-            Encoding:  #{Arql::App.config[:encoding]}
-            Pool Size: #{Arql::App.config[:pool]}
-        EOF
+              Active:    #{color_boolean(definition.connection.active?)}
+              Host:      #{config[:host]}
+              Port:      #{config[:port]}
+              Username:  #{config[:username]}
+              Password:  #{(config[:password] || '').gsub(/./, '*')}
+              Database:  #{config[:database]}
+              Adapter:   #{config[:adapter]}
+              Encoding:  #{config[:encoding]}
+              Pool Size: #{config[:pool]}
+          DB_INFO
+        end
       end
 
       def ssh_info
-        <<~EOF
+        Arql::App.instance.definitions.map do |env_name, definition|
+          next unless env_names.include?(env_name)
+          config = Arql::App.config[:environments][env_name]
+          <<~SSH_INFO
 
-        SSH Connection Information:
+          #{env_name} SSH Connection Information:
 
-            Active:     #{color_boolean(Arql::SSHProxy.active?)}
-            Host:       #{Arql::App.config[:ssh][:host]}
-            Port:       #{Arql::App.config[:ssh][:port]}
-            Username:   #{Arql::App.config[:ssh][:user]}
-            Password:   #{(Arql::App.config[:ssh][:password] || '').gsub(/./, '*')}
-            Local Port: #{Arql::SSHProxy.local_ssh_proxy_port}
-        EOF
+              Active:     #{color_boolean(definition.ssh_proxy.active?)}
+              Host:       #{config[:ssh][:host]}
+              Port:       #{config[:ssh][:port]}
+              Username:   #{config[:ssh][:user]}
+              Password:   #{(config[:ssh][:password] || '').gsub(/./, '*')}
+              Local Port: #{definition.ssh_proxy.local_ssh_proxy_port}
+          SSH_INFO
+        end
       end
 
       private
+
       def color_boolean(bool)
         if bool
           Rainbow('TRUE').green
@@ -44,9 +53,10 @@ module Arql::Commands
       end
     end
 
-    Pry.commands.block_command 'info' do
-      puts Info::db_info
-      puts Info::ssh_info if Arql::App.config[:ssh].present?
+    Pry.commands.block_command 'info' do |*env_names|
+      env_names = env_names.presence || Arql::App.instance.definitions.keys
+      output.puts Info::db_info(env_names)
+      output.puts Info::ssh_info(env_names) if Arql::App.config[:ssh].present?
     end
   end
 end

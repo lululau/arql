@@ -9,16 +9,18 @@ module Arql::Commands
 
       def enter
         ActiveRecord::ConnectionAdapters::AbstractAdapter.set_callback(:checkout, :after, &@sandbox_callback)
-        ActiveRecord::Base.connection.begin_transaction(joinable: false)
+        Arql::App.instance.definitions.each do |_, definition|
+          definition.connection.begin_transaction(joinable: false)
+        end
         @enabled = true
       end
 
       def quit
         ActiveRecord::ConnectionAdapters::AbstractAdapter.skip_callback(:checkout, :after, &@sandbox_callback)
+        Arql::App.instance.definitions.each do |_, definition|
+          definition.connection.rollback_transaction
+        end
         @enabled = false
-
-        puts "begin_transaction callbacks removed."
-        puts "You still have open %d transactions open, don't forget commit or rollback them." % ActiveRecord::Base.connection.open_transactions if ActiveRecord::Base.connection.open_transactions > 0
       end
     end
 

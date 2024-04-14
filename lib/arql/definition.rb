@@ -2,369 +2,197 @@ require 'arql/concerns'
 require 'arql/vd'
 
 module Arql
-  module Extension
-    extend ActiveSupport::Concern
 
-    def t(**options)
-      puts Terminal::Table.new { |t|
-        v(**options).each { |row| t << (row || :separator) }
-      }
-    end
+  class BaseModel < ::ActiveRecord::Base
+    self.abstract_class = true
 
-    def vd
-      VD.new do |vd|
-        vd << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
-        self.class.connection.columns(self.class.table_name).each do |column|
-          vd << [column.name, read_attribute(column.name), column.sql_type, column.comment || '']
-        end
-      end
-    end
-
-    def v(**options)
-      t = []
-      t << ['Attribute Name', 'Attribute Value', 'SQL Type', 'Comment']
-      t << nil
-      compact_mode = options[:compact] || false
-      self.class.connection.columns(self.class.table_name).each do |column|
-        value = read_attribute(column.name)
-        if compact_mode && value.blank?
-          next
-        end
-        t << [column.name, value, column.sql_type, column.comment || '']
-      end
-      t
-    end
-
-    def to_insert_sql
-      self.class.to_insert_sql([self])
-    end
-
-    def to_upsert_sql
-      self.class.to_upsert_sql([self])
-    end
-
-    def write_csv(filename, *fields, **options)
-      [self].write_csv(filename, *fields, **options)
-    end
-
-    def write_excel(filename, *fields, **options)
-      [self].write_excel(filename, *fields, **options)
-    end
-
-    def dump(filename, batch_size=500)
-      [self].dump(filename, batch_size)
-    end
-
-    included do
-    end
-
-    class_methods do
-      def t
-        table_name = Commands::Table::get_table_name(name)
-        puts "\nTable: #{table_name}"
-        puts Commands::Table::table_info_table(table_name)
-      end
-
-      def vd
-        table_name = Commands::Table::get_table_name(name)
-        Commands::VD::table_info_vd(table_name)
-        nil
-      end
-
-      def v
-        table_name = Commands::Table::get_table_name(name)
-        Commands::Table::table_info(table_name)
-      end
-      def to_insert_sql(records, batch_size=1)
-        to_sql(records, :skip, batch_size)
-      end
-
-      def to_upsert_sql(records, batch_size=1)
-        to_sql(records, :update, batch_size)
-      end
-
-      def to_sql(records, on_duplicate, batch_size)
-        records.in_groups_of(batch_size, false).map do |group|
-          ActiveRecord::InsertAll.new(self, group.map(&:attributes), on_duplicate: on_duplicate).send(:to_sql) + ';'
-        end.join("\n")
-      end
-
-      def to_create_sql
-        ActiveRecord::Base.connection.exec_query("show create table #{table_name}").rows.last.last
-      end
-
-      def dump(filename, no_create_table=false)
-        Arql::Mysqldump.new.dump_table(filename, table_name, no_create_table)
-      end
+    define_singleton_method(:indexes) do
+      conn.indexes(table_name).map do |idx|
+        {
+          Table: idx.table,
+          Name: idx.name,
+          Columns: idx.columns.join(', '),
+          Unique: idx.unique,
+          Comment: idx.comment
+        }
+      end.t
     end
   end
 
   class Definition
-    class << self
-      def models
-        @@models ||= []
+    attr :connection, :ssh_proxy, :options, :models, :namespace_module, :namespace
+
+    def redefine
+      @models.each do |model|
+        @namespace_module.send :remove_const, model[:model].class_name.to_sym if model[:model]
+        @namespace_module.send :remove_const, model[:abbr].sub(/^#{@namespace}::/, '').to_sym if model[:abbr]
       end
+      @models = []
+      @connection.tables.each do |table_name|
+        model = define_model_from_table(table_name, @primary_keys[table_name])
+        next unless model
 
-      def redefine
-        options = @@options
-        @@models.each do |model|
-          Object.send :remove_const, model[:model].name.to_sym if model[:model]
-          Object.send :remove_const, model[:abbr].to_sym if model[:abbr]
-        end
-        @@models = []
-        ActiveRecord::Base.connection.tap do |conn|
-          tables = conn.tables
-          comments = conn.table_comment_of_tables(tables)
-          primary_keys = conn.primary_keys_of_tables(tables)
-          tables.each do |table_name|
-            table_comment = comments[table_name]
-            primary_keys[table_name].tap do |pkey|
-              table_name_prefixes = options[:table_name_prefixes] || []
-              normalized_table_name = table_name_prefixes.each_with_object(table_name.dup) do |prefix, name|
-                name.sub!(/^#{prefix}/, '')
-              end
-              normalized_table_name.send(@@classify_method).tap do |const_name|
-                const_name = 'Modul' if const_name == 'Module'
-                const_name = 'Clazz' if const_name == 'Class'
-                Class.new(::ArqlModel) do
-                  include Arql::Extension
-                  if pkey.is_a?(Array) && pkey.size > 1
-                    self.primary_keys = pkey
-                  else
-                    self.primary_key = pkey&.first
-                  end
-                  self.table_name = table_name
-                  self.inheritance_column = nil
-                  ActiveRecord.default_timezone = :local
-                  if options[:created_at].present?
-                    define_singleton_method :timestamp_attributes_for_create do
-                      options[:created_at]
-                    end
-                  end
-
-                  if options[:updated_at].present?
-                    define_singleton_method :timestamp_attributes_for_update do
-                      options[:updated_at]
-                    end
-                  end
-                end.tap do |clazz|
-                  Object.const_set(const_name, clazz).tap do |const|
-                    const_name.gsub(/[a-z]*/, '').tap do |bare_abbr|
-                      abbr_const = nil
-                      9.times do |idx|
-                        abbr = idx.zero? ? bare_abbr : "#{bare_abbr}#{idx+1}"
-                        unless Object.const_defined?(abbr)
-                          Object.const_set abbr, const
-                          abbr_const = abbr
-                          break
-                        end
-                      end
-
-                      @@models << {
-                        model: const,
-                        abbr: abbr_const,
-                        table: table_name,
-                        comment: table_comment
-                      }
-                    end
-                  end
-                end
-              end
-            end
-          end
-        end
-
-        App.instance&.load_initializer!
+        model[:comment] = @comments[table_name]
+        @models << model
       end
+      App.instance&.load_initializer!
     end
 
     def initialize(options)
-      @@options = options
-      @@models = []
-      @@classify_method = if @@options[:singularized_table_names]
-                            :camelize
-                          else
-                            :classify
-                          end
-      ActiveRecord::Base.connection.tap do |conn|
-        Object.const_set('ArqlModel', Class.new(ActiveRecord::Base) do
-                           include ::Arql::Concerns::TableDataDefinition
-                           self.abstract_class = true
+      @models = []
+      @options = options
+      @classify_method = @options[:singularized_table_names] ? :camelize : :classify
+      @ssh_proxy = start_ssh_proxy if options[:ssh].present?
+      create_connection
 
-                           define_singleton_method(:indexes) do
-                             conn.indexes(table_name).map do |idx|
-                               {
-                                 Table: idx.table,
-                                 Name: idx.name,
-                                 Columns: idx.columns.join(', '),
-                                 Unique: idx.unique,
-                                 Comment: idx.comment
-                               }
-                             end.t
-                           end
-                         end)
+      tables = @connection.tables
+      if @connection.adapter_name == 'Mysql2'
+        require 'arql/ext/active_record/connection_adapters/abstract_mysql_adapter'
+        @comments = @connection.table_comment_of_tables(tables)
+        @primary_keys = @connection.primary_keys_of_tables(tables)
+      else
+        @comments = tables.map { |t| [t, @connection.table_comment(t)] }.to_h
+        @primary_keys = tables.map { |t| [t, @connection.primary_keys(t)] }.to_h
+      end
 
-        tables = conn.tables
-        if conn.adapter_name == 'Mysql2'
-          require 'arql/ext/active_record/connection_adapters/abstract_mysql_adapter'
-          comments = conn.table_comment_of_tables(tables)
-          primary_keys = conn.primary_keys_of_tables(tables)
+      tables.each do |table_name|
+        model = define_model_from_table(table_name, @primary_keys[table_name])
+        next unless model
+
+        model[:comment] = @comments[table_name]
+        @models << model
+      end
+    end
+
+    def define_model_from_table(table_name, primary_keys)
+      model_name = make_model_name(table_name)
+      return unless model_name
+
+      model_class = make_model_class(table_name, primary_keys)
+      @namespace_module.const_set(model_name, model_class)
+      abbr_name = make_model_abbr_name(model_name)
+      @namespace_module.const_set(abbr_name, model_class)
+
+      if Arql::App.instance.environments.size == 1
+        Object.const_set(model_name, model_class)
+        Object.const_set(abbr_name, model_class)
+      end
+
+      { model: model_class, abbr: "#@namespace::#{abbr_name}", table: table_name }
+    end
+
+    def make_model_abbr_name(model_name)
+      bare_abbr = model_name.gsub(/[a-z]*/, '')
+      model_abbr_name = bare_abbr
+      1000.times do |idx|
+        abbr = idx.zero? ? bare_abbr : "#{bare_abbr}#{idx + 1}"
+        unless @namespace_module.const_defined?(abbr)
+          model_abbr_name = abbr
+          break
+        end
+      end
+      model_abbr_name
+    end
+
+    def make_model_name(table_name)
+      table_name_prefixes = @options[:table_name_prefixes] || []
+      model_name = table_name_prefixes.each_with_object(table_name.dup) do |prefix, name|
+        name.sub!(/^#{prefix}/, '')
+      end.send(@classify_method)
+      model_name.gsub!(/^Module|Class|BaseModel$/, '$&0')
+      if model_name !~ /^[A-Z][A-Za-z0-9_]*$/
+        $stderr.warn "Could not make model name from table name: #{table_name}"
+        return
+      end
+      model_name
+    end
+
+    def make_model_class(table_name, primary_keys)
+      options = @options
+      Class.new(@base_model) do
+        include Arql::Extension
+        if primary_keys.is_a?(Array) && primary_keys.size > 1
+          self.primary_keys = primary_keys
         else
-          comments = tables.map { |t| [t, conn.table_comment(t)] }.to_h
-          primary_keys = tables.map { |t| [t, conn.primary_keys(t)] }.to_h
+          self.primary_key = primary_keys&.first
+        end
+        self.table_name = table_name
+        self.inheritance_column = nil
+        ActiveRecord.default_timezone = :local
+        if options[:created_at].present?
+          define_singleton_method :timestamp_attributes_for_create do
+            options[:created_at]
+          end
         end
 
-        tables.each do |table_name|
-          table_comment = comments[table_name]
-          primary_keys[table_name].tap do |pkey|
-            table_name_prefixes = options[:table_name_prefixes] || []
-            normalized_table_name = table_name_prefixes.each_with_object(table_name.dup) do |prefix, name|
-              name.sub!(/^#{prefix}/, '')
-            end
-            normalized_table_name.send(@@classify_method).tap do |const_name|
-              const_name = 'Modul' if const_name == 'Module'
-              const_name = 'Clazz' if const_name == 'Class'
-              if const_name !~ /^[A-Z][A-Za-z0-9_]*$/
-                puts "Invalid class name: #{const_name}, skipped."
-                next
-              end
-              Class.new(::ArqlModel) do
-                include Arql::Extension
-                if pkey.is_a?(Array) && pkey.size > 1
-                  self.primary_keys = pkey
-                else
-                  self.primary_key = pkey&.first
-                end
-                self.table_name = table_name
-                self.inheritance_column = nil
-                ActiveRecord.default_timezone = :local
-                if options[:created_at].present?
-                  define_singleton_method :timestamp_attributes_for_create do
-                    options[:created_at]
-                  end
-                end
-
-                if options[:updated_at].present?
-                  define_singleton_method :timestamp_attributes_for_update do
-                    options[:updated_at]
-                  end
-                end
-              end.tap do |clazz|
-                Object.const_set(const_name, clazz).tap do |const|
-                  const_name.gsub(/[a-z]*/, '').tap do |bare_abbr|
-                    abbr_const = nil
-                    9.times do |idx|
-                      abbr = idx.zero? ? bare_abbr : "#{bare_abbr}#{idx+1}"
-                      unless Object.const_defined?(abbr)
-                        Object.const_set abbr, const
-                        abbr_const = abbr
-                        break
-                      end
-                    end
-
-                    @@models << {
-                      model: const,
-                      abbr: abbr_const,
-                      table: table_name,
-                      comment: table_comment
-                    }
-                  end
-                end
-              end
-            end
+        if options[:updated_at].present?
+          define_singleton_method :timestamp_attributes_for_update do
+            options[:updated_at]
           end
         end
       end
     end
 
-    ::ActiveRecord::Relation.class_eval do
-      def t(*attrs, **options)
-        records.t(*attrs, **options)
-      end
-
-      def vd(*attrs, **options)
-        records.vd(*attrs, **options)
-      end
-
-      def v
-        records.v
-      end
-
-      def a
-        to_a
-      end
-
-      def write_csv(filename, *fields, **options)
-        records.write_csv(filename, *fields, **options)
-      end
-
-      def write_excel(filename, *fields, **options)
-        records.write_excel(filename, *fields, **options)
-      end
-
-      def dump(filename, batch_size=500)
-        records.dump(filename, batch_size)
-      end
+    def start_ssh_proxy
+      ssh_config = @options[:ssh]
+      Arql::SSHProxy.new(
+        ssh_config.slice(:host, :user, :port, :password)
+          .merge(forward_host: @options[:host],
+            forward_port: @options[:port],
+            local_port: ssh_config[:local_port]))
     end
 
-    ::ActiveRecord::Result.class_eval do
-      def t(*attrs, **options)
-        to_a.t(*attrs, **options)
-      end
-
-      def vd(*attrs, **options)
-        to_a.vd(*attrs, **options)
-      end
-
-      def v
-        to_a.v
-      end
-
-      def a
-        to_a
-      end
-
-      def write_csv(filename, *fields, **options)
-        to_a.write_csv(filename, *fields, **options)
-      end
-
-      def write_excel(filename, *fields, **options)
-        to_a.write_excel(filename, *fields, **options)
-      end
-
-      def dump(filename, batch_size=500)
-        to_a.dump(filename, batch_size)
-      end
+    def get_connection_options
+      connect_conf = @options.slice(:adapter, :host, :username, :password,
+                                :database, :encoding, :pool, :port, :socket)
+      connect_conf.merge(@ssh_proxy.database_host_port) if @ssh_proxy
+      connect_conf
     end
 
-    ::Ransack::Search.class_eval do
-      def t(*attrs, **options)
-        result.t(*attrs, **options)
+    def create_connection
+      @namespace = @options[:namespace]
+      connection_opts = get_connection_options
+      print "Establishing DB connection to #{connection_opts[:host]}:#{connection_opts[:port]}"
+      @namespace_module = create_namespace_module(@namespace)
+      @base_model = @namespace_module.const_set('BaseModel', Class.new(BaseModel))
+      @base_model.class_eval do
+        include ::Arql::Concerns::TableDataDefinition
+        self.abstract_class = true
+        establish_connection(connection_opts)
+        class << self
+          attr_accessor :definition
+        end
       end
+      print "\u001b[2K"
+      puts "\rDB connection to #{connection_opts[:host]}:#{connection_opts[:port]} established\n"
+      @connection = @base_model.connection
+      @base_model.define_singleton_method(:dump) do |filename, no_create_db = false|
+        Arql::Mysqldump.new(options).dump_database(filename, no_create_db)
+      end
+      @base_model.definition = self
+    end
 
-      def vd(*attrs, **options)
-        result.vd(*attrs, **options)
-      end
+    def create_namespace_module(namespace)
+      definition = self
 
-      def v
-        result.v
-      end
+      Object.const_set(namespace, Module.new {
 
-      def a
-        result.a
-      end
+        define_singleton_method(:models) do
+          definition.models.map { |m| m[:model] }
+        end
 
-      def write_csv(filename, *fields, **options)
-        result.write_csv(filename, *fields, **options)
-      end
+        define_singleton_method(:tables) do
+          definition.models.map { |m| m[:table] }
+        end
 
-      def write_excel(filename, *fields, **options)
-        result.write_excel(filename, *fields, **options)
-      end
+        define_singleton_method(:model_names) do
+          models.map(&:name)
+        end
 
-      def dump(filename, batch_size=500)
-        result.dump(filename, batch_size)
-      end
+        define_singleton_method(:q) do |sql|
+          definition.connection.exec_query(sql)
+        end
+      })
     end
   end
 end

@@ -1,114 +1,140 @@
 module Arql
   class App
+    attr_accessor :log_io, :environments, :definitions, :options, :config
 
     class << self
-      attr_accessor :log_io, :env, :prompt, :instance, :connect_options
+      attr_accessor :instance
 
-      def config
-        @@effective_config
+      def log_io
+        instance.log_io
+      end
+
+      def log_io=(io)
+        instance.log_io = io
+      end
+
+      # environment names
+      def environments
+        instance.environments
       end
 
       def prompt
-        if env
-          env
-        else
-          File.basename(@@effective_config[:database])
-        end
+        instance.prompt
+      end
+
+      def config
+        instance.config
+      end
+    end
+
+    def prompt
+      if environments.present?
+        environments.join('+')
+      else
+        File.basename(@options.database)
       end
     end
 
     def initialize(options)
-      require "arql/connection"
       require "arql/definition"
+
+      App.instance = self
+
+      # command line options
       @options = options
-      App.env = @options.env
-      App.connect_options = connect_options
-      Connection.open(App.connect_options)
+
+      # env names
+      @environments = @options.environments
+
       print "Defining models..."
-      @definition = Definition.new(effective_config)
+      @definitions = config[:environments].each_with_object({}) do |(env_name, env_conf), h|
+        h[env_name] = Definition.new(env_conf)
+      end.with_indifferent_access
+
       print "\u001b[2K"
       puts "\rModels defined"
       print "Running initializers..."
       load_initializer!
       print "\u001b[2K"
       puts "\rInitializers loaded"
-      App.instance = self
-    end
-
-    def connect_options
-      connect_conf = effective_config.slice(:adapter, :host, :username,
-                             :password, :database, :encoding,
-                             :pool, :port, :socket)
-      if effective_config[:ssh].present?
-        connect_conf.merge!(start_ssh_proxy!)
-      end
-
-      connect_conf
     end
 
     def load_initializer!
-      return unless effective_config[:initializer]
-      initializer_file = File.expand_path(effective_config[:initializer])
+      return unless config[:options][:initializer]
+
+      initializer_file = File.expand_path(config[:options][:initializer])
       unless File.exist?(initializer_file)
-        STDERR.puts "Specified initializer file not found, #{effective_config[:initializer]}"
+        $stderr.warn "Specified initializer file not found, #{config[:options][:initializer]}"
         exit(1)
       end
       load(initializer_file)
     end
 
-    def start_ssh_proxy!
-      ssh_config = effective_config[:ssh]
-      local_ssh_proxy_port = Arql::SSHProxy.connect(ssh_config.slice(:host, :user, :port, :password).merge(
-                                                                                                           forward_host: effective_config[:host],
-                                                                                                           forward_port: effective_config[:port],
-                                                                                                           local_port: ssh_config[:local_port]))
-      {
-        host: '127.0.0.1',
-        port: local_ssh_proxy_port
-      }
-    end
-
-    def config
-      @config ||= YAML.load(IO.read(File.expand_path(@options.config_file)), aliases: true).with_indifferent_access
+    def config_from_file
+      @config_from_file ||= YAML.safe_load(IO.read(File.expand_path(@options.config_file)), aliases: true).with_indifferent_access
     rescue ArgumentError
-      @config ||= YAML.load(IO.read(File.expand_path(@options.config_file))).with_indifferent_access
+      @config_from_file ||= YAML.safe_load(IO.read(File.expand_path(@options.config_file))).with_indifferent_access
     end
 
-    def selected_config
-      if @options.env.present? && !config[@options.env].present?
-        STDERR.puts "Specified ENV `#{@options.env}' not exists"
+    # Returns the configuration for config file.
+    #  or default configuration (built from CLI options) if no environment specified
+    def environ_config_from_file
+      unless @options.environments&.all? { |env_names| config_from_file.key?(env_names) }
+        $stderr.warn "Specified ENV `#{@options.env}' not exists in config file"
+        exit(1)
       end
-      if env = @options.env
-        config[env]
+      conf = if @options.environments.present?
+        @config_from_file.slice(*@options.environments)
       else
-        {}
+        { default: @options.to_h }.with_indifferent_access
+      end
+      conf.each do |env_name, env_conf|
+        unless env_conf.key?(:namespace)
+          env_conf[:namespace] = env_name.to_s.gsub(/[^a-zA-Z0-9]/, '_').camelize
+        end
       end
     end
 
-    def effective_config
-      @@effective_config ||= nil
-      unless @@effective_config
-        @@effective_config = selected_config.deep_merge(@options.to_h)
-        if @@effective_config[:adapter].blank?
-          @@effective_config[:adapter] = 'sqlite3'
-        end
-        @@effective_config[:database] = File.expand_path(@@effective_config[:database]) if @@effective_config[:adapter] == 'sqlite3'
-      end
-      @@effective_config
+    # Returns the effective configuration for the application.
+    # structure like:
+    # {
+    #   options: {show_sql: true,
+    #             write_sql: 'output.sql',
+    #             },
+    #   environments: {
+    #     development: {adapter: 'mysql2',
+    #                   host: 'localhost',
+    #                   port: 3306},
+    #     test: {adapter: 'mysql2',
+    #            host: 'localhost',
+    #            port: 3306},
+    #    }
+    # }
+    def config
+      @config ||= {
+        options: @options,
+        environments: environ_config_from_file.each_with_object({}) { |(env_name, env_conf), h|
+          conf = env_conf.deep_merge(@options.to_h)
+          conf[:adapter] = 'sqlite3' if conf[:adapter].blank?
+          conf[:database] = File.expand_path(conf[:database]) if conf[:adapter] == 'sqlite3'
+          h[env_name] = conf
+          h
+        }.with_indifferent_access
+      }
     end
 
     def run!
       show_sql if should_show_sql?
       write_sql if should_write_sql?
       append_sql if should_append_sql?
-      if effective_config[:code].present?
-        eval(effective_config[:code])
-      elsif effective_config[:args].present?
-        effective_config[:args].first.tap { |file| load(file) }
-      elsif STDIN.isatty
+      if @options.code&.present?
+        eval(@options.code)
+      elsif @options.args.present?
+        @options.args.first.tap { |file| load(file) }
+      elsif $stdin.isatty
         run_repl!
       else
-        eval(STDIN.read)
+        eval($stdin.read)
       end
     end
 
@@ -117,32 +143,32 @@ module Arql
     end
 
     def should_show_sql?
-      effective_config[:show_sql]
+      @options.show_sql
     end
 
     def should_write_sql?
-      effective_config[:write_sql]
+      @options.write_sql
     end
 
     def should_append_sql?
-      effective_config[:append_sql]
+      @options.append_sql
     end
 
     def show_sql
       App.log_io ||= MultiIO.new
       ActiveRecord::Base.logger = Logger.new(App.log_io)
-      App.log_io << STDOUT
+      App.log_io << $stdout
     end
 
     def write_sql
-      write_sql_file = effective_config[:write_sql]
+      write_sql_file = @options.write_sql
       App.log_io ||= MultiIO.new
       ActiveRecord::Base.logger = Logger.new(App.log_io)
       App.log_io << File.new(write_sql_file, 'w')
     end
 
     def append_sql
-      write_sql_file = effective_config[:append_sql]
+      write_sql_file = @options.append_sql
       App.log_io ||= MultiIO.new
       ActiveRecord::Base.logger = Logger.new(App.log_io)
       App.log_io << File.new(write_sql_file, 'a')

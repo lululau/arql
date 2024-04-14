@@ -159,7 +159,13 @@ module Arql
         #
         # See also TableDefinition#column for details on how to create columns.
         def create_table(table_name, **options, &blk)
-          ActiveRecord::Base.connection.create_table(table_name, **options, &blk)
+          env_name = options[:env]
+          unless env_name
+            raise ArgumentError, ':env option is required' if Arql::App.instance.environments.size > 1
+
+            env_name = Arql::App.instance.environments.first
+          end
+          Arql::App.instance.definitions[env_name].connection.create_table(table_name, **options, &blk)
         end
 
         # Creates a new join table with the name created using the lexical order of the first two
@@ -201,7 +207,13 @@ module Arql
         #   ) ENGINE=InnoDB DEFAULT CHARSET=utf8
         #
         def create_join_table(table_1, table_2, column_options: {}, **options)
-          ActiveRecord::Base.connection.create_join_table(table_1, table_2, column_options, **options)
+          env_name = options[:env]
+          unless env_name
+            raise ArgumentError, ':env option is required' if Arql::App.instance.environments.size > 1
+
+            env_name = Arql::App.instance.environments.first
+          end
+          Arql::App.instance.definitions[env_name].connection.create_join_table(table_1, table_2, column_options, **options)
         end
 
         # Drops a table from the database.
@@ -217,7 +229,13 @@ module Arql
         # it can be helpful to provide these in a migration's +change+ method so it can be reverted.
         # In that case, +options+ and the block will be used by #create_table.
         def drop_table(table_name, **options)
-          ActiveRecord::Base.connection.drop_table(table_name, **options)
+          env_name = options[:env]
+          unless env_name
+            raise ArgumentError, ':env option is required' if Arql::App.instance.environments.size > 1
+
+            env_name = Arql::App.instance.environments.first
+          end
+          Arql::App.instance.definitions[env_name].connection.drop_table(table_name, **options)
         end
 
         # Drops the join table specified by the given arguments.
@@ -227,7 +245,13 @@ module Arql
         # to provide one in a migration's +change+ method so it can be reverted.
         # In that case, the block will be used by #create_join_table.
         def drop_join_table(table_1, table_2, **options)
-          ActiveRecord::Base.connection.drop_join_table(table_1, table_2, **options)
+          env_name = options[:env]
+          unless env_name
+            raise ArgumentError, ':env option is required' if Arql::App.instance.environments.size > 1
+
+            env_name = Arql::App.instance.environments.first
+          end
+          Arql::App.instance.definitions[env_name].connection.drop_join_table(table_1, table_2, **options)
         end
 
         # Renames a table.
@@ -235,9 +259,14 @@ module Arql
         #   rename_table('octopuses', 'octopi')
         #
         def rename_table(table_name, new_name)
-          ActiveRecord::Base.connection.rename_table(table_name, new_name)
-        end
+          env_name = options[:env]
+          unless env_name
+            raise ArgumentError, ':env option is required' if Arql::App.instance.environments.size > 1
 
+            env_name = Arql::App.instance.environments.first
+          end
+          Arql::App.instance.definitions[env_name].connection.rename_table(table_name, new_name)
+        end
       end
     end
   end

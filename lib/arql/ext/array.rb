@@ -17,6 +17,7 @@ class Array
   end
 
   def t(*attrs, **options)
+    format = options[:format] || :terminal
     if (attrs.present? || options.present? && options[:except]) && present? && first.is_a?(ActiveRecord::Base)
       column_names = first.attribute_names.map(&:to_sym)
       attrs = attrs.flat_map { |e| e.is_a?(Regexp) ? column_names.grep(e) : e }.uniq
@@ -32,16 +33,36 @@ class Array
       #   attrs = attrs.select { |e| any { |r| r.attributes[e.to_s]&.present? } }
       # end
       puts Terminal::Table.new { |t|
+        t.style = table_style_for_format(format)
         t << attrs
         t << :separator
         each do |e|
           t << e.attributes.values_at(*attrs.map(&:to_s))
         end
+      }.try { |e|
+        case format
+        when 'md'
+          e.to_s.lines.map { |l| '  ' + l }.join
+        when 'org'
+          e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
+        else
+          e.to_s
+        end
       }
     else
       table = Terminal::Table.new { |t|
+        t.style = table_style_for_format(format)
         v(**options).each { |row| t << (row || :separator)}
-      }.to_s
+      }.try { |e|
+        case format
+        when 'md'
+          e.to_s.lines.map { |l| '  ' + l }.join
+        when 'org'
+          e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
+        else
+          e.to_s
+        end
+      }
 
       terminal_width = `tput cols`.to_i
       if table.lines.first.size > terminal_width
@@ -218,6 +239,24 @@ class Array
           raise "unrecognized plot_type: #{type}"
         end
       plot.render(STDOUT)
+    end
+  end
+
+  def table_style_for_format(format)
+    case format.to_s
+    when 'md'
+      {
+        border_top: false,
+        border_bottom: false,
+        border_i: '|'
+      }
+    when 'org'
+      {
+        border_top: false,
+        border_bottom: false,
+      }
+    else
+      {}
     end
   end
 end

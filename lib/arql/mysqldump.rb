@@ -2,7 +2,6 @@ module Arql
   class Mysqldump
 
     def initialize(options = nil)
-      options ||= App.connect_options
       @options = options
       if options[:socket]
         port_or_sock = "-S #{options[:socket]}"
