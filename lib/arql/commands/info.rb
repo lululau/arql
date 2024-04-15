@@ -3,9 +3,10 @@ require 'rainbow'
 module Arql::Commands
   module Info
     class << self
-      def db_info(env_names)
+      def db_info(env_name_regexp)
+
         Arql::App.instance.definitions.map do |env_name, definition|
-          next unless env_names.include?(env_name)
+          next unless env_name =~ env_name_regexp
           config = Arql::App.config[:environments][env_name]
           <<~DB_INFO
 
@@ -24,9 +25,9 @@ module Arql::Commands
         end
       end
 
-      def ssh_info
+      def ssh_info(env_name_regexp)
         Arql::App.instance.definitions.map do |env_name, definition|
-          next unless env_names.include?(env_name)
+          next unless env_name =~ env_name_regexp
           config = Arql::App.config[:environments][env_name]
           <<~SSH_INFO
 
@@ -53,10 +54,11 @@ module Arql::Commands
       end
     end
 
-    Pry.commands.block_command 'info' do |*env_names|
-      env_names = env_names.presence || Arql::App.instance.definitions.keys
-      output.puts Info::db_info(env_names)
-      output.puts Info::ssh_info(env_names) if Arql::App.config[:ssh].present?
+    Pry.commands.block_command 'info' do |env_name_regexp|
+      env_name_regexp ||= '.*'
+      env_name_regexp = Regexp.new(env_name_regexp, Regexp::IGNORECASE)
+      output.puts Info::db_info(env_name_regexp)
+      output.puts Info::ssh_info(env_name_regexp) if Arql::App.config[:ssh].present?
     end
   end
 end
