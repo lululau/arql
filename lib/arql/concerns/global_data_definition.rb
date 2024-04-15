@@ -165,6 +165,7 @@ module Arql
 
             env_name = Arql::App.instance.environments.first
           end
+          options = options.except(:env)
           Arql::App.instance.definitions[env_name].connection.create_table(table_name, **options, &blk)
         end
 
@@ -213,6 +214,7 @@ module Arql
 
             env_name = Arql::App.instance.environments.first
           end
+          options = options.except(:env)
           Arql::App.instance.definitions[env_name].connection.create_join_table(table_1, table_2, column_options, **options)
         end
 
@@ -235,6 +237,7 @@ module Arql
 
             env_name = Arql::App.instance.environments.first
           end
+          options = options.except(:env)
           Arql::App.instance.definitions[env_name].connection.drop_table(table_name, **options)
         end
 
@@ -251,6 +254,7 @@ module Arql
 
             env_name = Arql::App.instance.environments.first
           end
+          options = options.except(:env)
           Arql::App.instance.definitions[env_name].connection.drop_join_table(table_1, table_2, **options)
         end
 
@@ -265,6 +269,7 @@ module Arql
 
             env_name = Arql::App.instance.environments.first
           end
+          options = options.except(:env)
           Arql::App.instance.definitions[env_name].connection.rename_table(table_name, new_name)
         end
       end

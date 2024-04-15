@@ -29,7 +29,6 @@
    #+end_example
 
 ** 使用方法
-   
 *** 命令行选项
     
     #+begin_example
@@ -73,7 +72,33 @@
 
 **** =-e, --env=ENVIRON=
      
-     指定一个在配置文件中的环境名称。
+     指定一个或多个在配置文件中的环境名称，多个环境名称之间用逗号/加号/冒号分隔。
+
+     Arql 为每个环境所生成的模型类将放在该环境的 =namespace= 配置所指定的命名空间下。例如：
+
+     #+BEGIN_SRC yaml
+       development:
+         adapter: mysql2
+         host: localhost
+         username: root
+         database: myapp_development
+         pool: 5
+         namespace: Dev
+     #+END_SRC
+
+     假设 =myapp_development= 数据库中有一个名为 =users=, =posts= 等表，那么在 =development= 环境下生成的模型类将是:
+
+     + =Dev::User=
+     + =Dev::Post=
+     
+     如果没有指定 =namespace= 配置，那么默认的命名空间为环境名称的 CamelCase 形式。例如这里的 =Development=, 那么生成的模型类将是:
+
+      + =Development::User=
+      + =Development::Post=
+
+     Arql 通过覆盖 =Object.const_missing= 的方式，为那些类名和已有常量不重名的模型类，在顶层命名空间下也定义了一个「别名」，例如在不和已有常量重名的情况下，可以直接使用 =User=, =Post= 等类名。
+
+     如果指定的多个环境中有重名的表，那么按照指定的环境的顺序，将为前面的环境中的表的模型类定义一个「别名」
 
 **** =-E, --eval=CODE=
      
@@ -167,6 +192,27 @@
     7. =ssh.local_port= : ssh 本地端口
     8. =singularized_table_names=: 是否使用单数表名，默认为 =false=, 如果为 =false=, 则 =students= 表将定义为 =Student= 模型，如果为 =true=, 则 =students= 表将定义为 =Students= 模型
     9. =table_name_prefixes=: 表名前缀数组，默认为空数组，如果指定了此项，在生成模型时将忽略这些前缀，例如，如果指定了 =["t_"]=, 则 =t_students= 表将定义为 =Student= 模型
+    10. =namespace=: 模型命名空间，默认为环境名称的 CamelCase 形式，生成的模型将放在指定的命名空间下
+    11. =model_names=: 这个配置项的值是一个 Hash(Map) , Key 为表名， Value 为将要为该表生成的模型名称; Arql 默认使用
+        ActiveRecord 的命名规则生成模型名称，如果指定了这个配置项，该配置项所指定的表将使用改配置项指定的模型名称Value
+        除了可以是表示模型名称的字符串外，还可以是一个字符串数组，数组的第一个元素表示模型名称，第二个元素表示为该模型创
+        建的常量别名（Arql 默认也会按照一定的规则自动为生成的模型类创建别名，如果这里指定了别名，将会使用用户提供的值作
+        为别名）
+
+    =model_names= 配置项的例子:
+    
+    #+BEGIN_SRC yaml
+      development:
+        host: localhost
+        database: test
+        username: root
+        model_names:
+          students: Seito
+          teachers: ["LaoShi", "LS"]
+    #+END_SRC
+
+    以上配置文件中，将为 =students= 表生成一个名为 =Seito= 的模型，为 =teachers= 表生成一个名为 =LaoShi= 的模型，并为该模型创建一个名为 =LS= 的常量别名;
+    还会为 =students= 表生成一个别名: =S=
 
 **** 配置文件示例
      
@@ -185,6 +231,7 @@
        password:
        table_name_prefixes: ["t_"]
        socket: /tmp/mysql.sock
+       namespace: B
 
      dev:
        <<: *default
@@ -194,6 +241,7 @@
        password: 123456
        database: blog
        table_name_prefixes: ["t_"]
+       namespace: B
        ssh:
          host: dev.mycompany.com
          port: 22
@@ -227,7 +275,7 @@
      =info= 命令打印当前的数据库连接信息和 SSH 代理信息，例如：
 
      #+begin_example
-     Database Connection Information:
+     my_env Database Connection Information:
          Host:
          Port:
          Username:  root
@@ -237,6 +285,12 @@
          Encoding:  utf8
          Pool Size: 5
      #+end_example
+
+     =info= 默认显示指定的所有环境的连接信息，如果只想显示当前环境的连接信息， =info= 命令接受一个正则表达式参数，只显示匹配的环境信息，例如：
+
+     #+BEGIN_EXAMPLE
+      info .*dev
+     #+END_EXAMPLE
 
 **** =m= 或者 =l=
      
@@ -265,11 +319,24 @@
      - =Abbr= : 缩写类名
      - =Comment= : 注释
 
-     =m= / =l= 命令还可以接受一个参数，用于通过表名或表注释来对列表进行过滤, 例如：
+     =m= / =l= 命令三个可选的选项:
 
-     =m perm= 只会列出表名或表注释中包含 =perm= 的表；如果要使用正则表达式匹配，可以使用 =m /perm/i= 来进行匹配。
+     + =-e=, =--env= : 指定环境，正则表达式，只显示匹配的环境下的表名，默认显示所有环境
+     + =-f=, =--format= : 输出格式:
+       - =terminal= : 默认的表格格式
+       - =md= : markdown 表格格式
+       - =org= : org mode 表格格式
+       - =sql= : 输出 create table SQL
+     + =-c=, =--column= : 正则表达式，列出字段，而不是表，按照字段名或字段注释筛选
 
-     如果想通过列名或者列注释来过滤，可以使用 ~m column=order_no~ / ~m c=order_no~ 选项。
+     =m= / =l= 命令还可以接受一个可选的正则表达式参数，只显示(按照表名或表注释)匹配的表的信息，例如：
+
+     #+BEGIN_EXAMPLE
+       l  # 显示所有表的信息
+       l ^post  # 只显示表名以 post 开头的表的信息
+       l -e dev -f md  # 显示 dev 环境下的表信息，并以 markdown 格式输出
+       l -c no|num  # 只显示字段名、字段注释中包含 no 或 num 的字段信息
+     #+END_EXAMPLE
 
 **** =t=
      
@@ -351,9 +418,9 @@
      =redefine= 命令用于重新定义 ActiveRecord 模型类，根据数据库表的信息重新生成模型类。对于在 =init.rb= 中添加了新的关
      系定义，想使新定义的关系在当前 Pry 会话中生效，可以使用 =redefine= 命令。
 
-**** 沙盒模式
+**** =sandbox-enter= 和 =sandbox-quit=
 
-     =sandbox-enter= 命令用于开启沙盒模式。在沙盒模式下，所有的数据库操作都会在事务中执行，该事务不会自动提交，需要手动提交或回滚。
+     =sandbox-enter= 命令用于开启沙盒模式。在沙盒模式下，所有的数据库操作都会在事务中执行，该事务不会自动提交，退出沙盒模式时，会自动回滚事务。
 
      1. 开启沙盒模式:
         #+begin_example
@@ -363,19 +430,7 @@
      2. 退出沙盒模式:
         #+begin_example
           ARQL@demo247 [sandbox] (main) [7] ❯ sandbox-quit
-          begin_transaction callbacks removed.
-          You still have open 1 transactions open, don't forget commit or rollback them.
         #+end_example
-     3. 提交事务:
-        #+begin_example
-          ARQL@demo247(main) [7] ❯ $C.commit_transaction
-        #+end_example
-     4. 回滚事务:
-        #+begin_example
-          ARQL@demo247(main) [7] ❯ $C.rollback_transaction
-        #+end_example
-
-     
      
 *** 作为代码解释器使用
     
@@ -413,23 +468,79 @@
       $ echo 'puts Person.count' | arql -e dev
       #+end_example
 
-*** 额外的扩展方法
-**** =to_insert_sql= / =to_upsert_sql=
-     
-     可以在任何 ActiveRecord 模型实例上调用 =to_insert_sql= / =to_upsert_sql= 方法，获取该对象的插入或更新 SQL 语句。
-     这两个方法也可以在包含 ActiveRecord 模型实例对象的数组对象上调用。
+** 额外的扩展方法
+*** 命名空间模块的模块方法
+**** =q=
 
+     =q= 用于执行 SQL 查询
+      
      #+begin_example
-     ARQL ❯ Person.all.to_a.to_insert_sql
-     => "INSERT INTO `person` (`id`,`name`,`age`,`gender`,`grade`,`blood_type`) VALUES (1, 'Jack', 30, NULL, NULL, NULL), (2, 'Jack', 11, 1, NULL, NULL), (3, 'Jack', 12, 1, NULL, NULL), (4, 'Jack', 30, 1, NULL, NULL), (5, 'Jack', 12, 2, NULL, NULL), (6, 'Jack', 2, 2, 2, NULL), (7, 'Jack', 3, 2, 2, NULL), (8, 'Jack', 30, 2, 2, 'AB'), (9, 'Jack', 30, 2, 2, 'AB'), (10, 'Jack', 30, 2, 2, 'AB'), (11, 'Jackson', 30, 2, 2, 'AB') ON DUPLICATE KEY UPDATE `id`=`id`;"
+     ARQL ❯ rs = Blog::q 'select count(0) from person;'
+     => #<ActiveRecord::Result:0x00007fd1f8026ad0 @column_types={}, @columns=["count(0)"], @hash_rows=nil, @rows=[[11]]>
+     ARQL ❯ rs.rows
+     => [[11]]
      #+end_example
+**** =models=
 
+      =models= 返回该命名空间下的所有模型类
+  
+      #+begin_example
+      ARQL ❯ Blog::models
+      => [Blog::Person(id: integer, name: string, age: integer, created_at: datetime, updated_at: datetime), Blog::Post(id: integer, title: string, content: text, created_at: datetime, updated_at: datetime)]
+      #+end_example
+     
+**** =tables=
+
+     =tables= 返回该命名空间下的所有表名
+
+      #+begin_example
+      ARQL ❯ Blog::tables
+      => ["people", "posts"]
+      #+end_example
+     
+**** =model_names=
+
+      =model_names= 返回该命名空间下的所有模型类的名称
+  
+        #+begin_example
+        ARQL ❯ Blog::model_names
+        => ["Demo::Person", "Demo::Post"]
+        #+end_example
+     
+**** =create_table=
+
+      =create_table= 用于在该命名空间所对应的环境中创建表
+
+      #+begin_example
+      ARQL ❯ Blog::create_table :people do |t|
+      ARQL ❯   t.string :name
+      ARQL ❯   t.integer :age
+      ARQL ❯   t.timestamps
+      ARQL ❯ end
+      #+end_example
+     
+**** =dump=
+
+      =dump= 通过 =mysqldump= 将该命名空间对应的数据库导出到指定的文件中
+
+      #+begin_example
+      ARQL ❯ Blog::dump('~/data/blog.sql')
+      #+end_example
+     
+*** 模型的类方法
+    
+    Pry 内建了 =show-source= (别名 =$= ) 和 =show-doc= （别名 =?= ）命令，可以查看方法的源码和文档。可以通过 =show-doc= 查看方法的文档。例如：
+
+    #+BEGIN_EXAMPLE
+     ARQL ❯ ? Student.add_column
+    #+END_EXAMPLE
+     
 **** =to_create_sql=
      
      可以在任何 ActiveRecord 模型类上调用 =to_create_sql= 方法，获取该模型类对应的表的创建 SQL 语句。
 
      #+begin_example
-     ARQL@demo247(main) [16] ❯ puts Post.to_create_sql
+     ARQL@demo247(main) [16] ❯ puts Blog::Post.to_create_sql
      D, [2024-04-07T14:15:11.106693 #20440] DEBUG -- :   SQL (24.9ms)  show create table post
      CREATE TABLE `post` (
        `id` int(10) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
@@ -446,6 +557,167 @@
      #+end_example
 
 **** =t=
+
+     =t= 类方法用于打印模型类的表结构
+     
+     执行 =Blog::Person.t= 命令会打印 =person= 表的定义信息：
+
+     #+begin_example
+     Table: person
+     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
+     | PK | Name       | SQL Type         | Ruby Type | Limit | Precision | Scale | Default | Nullable | Comment |
+     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
+     | Y  | id         | int(11) unsigned | integer   | 4     |           |       |         | false    |         |
+     |    | name       | varchar(64)      | string    | 64    |           |       |         | true     |         |
+     |    | age        | int(11)          | integer   | 4     |           |       |         | true     |         |
+     |    | gender     | int(4)           | integer   | 4     |           |       |         | true     |         |
+     |    | grade      | int(4)           | integer   | 4     |           |       |         | true     |         |
+     |    | blood_type | varchar(4)       | string    | 4     |           |       |         | true     |         |
+     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
+     #+end_example
+
+     =t= 接受一个可选的 =format= 命名参数，可选值为：
+
+     + =md=
+     + =org=
+     + =sql=
+     + =terminal= (默认值)
+
+     例如：
+
+      #+begin_example
+      ARQL ❯ Blog::Person.t :sql
+      #+end_example
+
+      输出：
+
+      #+begin_example
+      CREATE TABLE `person` (
+        `id` int(11) unsigned NOT NULL AUTO_INCREMENT COMMENT 'ID',
+        `name` varchar(64) DEFAULT NULL,
+        `age` int(11) DEFAULT NULL,
+        `gender` int(4) DEFAULT NULL,
+        `grade` int(4) DEFAULT NULL,
+        `blood_type` varchar(4) DEFAULT NULL,
+        PRIMARY KEY (`id`)
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci COMMENT='人员表';
+      #+end_example
+     
+**** =v=
+
+     =v= 类方法用于和 Emacs 的 org babel 集成，可以在 org 文件中直接调用 =v= 方法，获取模型类的表结构。
+
+      例如：
+
+      #+begin_example
+      ARQL ❯ Blog::Post.v
+      #+end_example
+
+      输出：
+
+      #+BEGIN_EXAMPLE
+        ARQL@demo247(main) [10] ❯ Demo::Post.v
+        => [["PK", "Name", "SQL Type", "Ruby Type", "Limit", "Precision", "Scale", "Default", "Nullable", "Comment"],
+         nil,
+         ["Y", "id", "int(10) unsigned", :integer, 4, "", "", "", false, "ID"],
+         ["", "name", "varchar(256)", :string, 256, "", "", "", true, ""],
+         ["", "gender", "varchar(256)", :string, 256, "", "", "", true, ""],
+         ["", "phone", "varchar(256)", :string, 256, "", "", "", true, ""],
+         ["", "id_no", "varchar(256)", :string, 256, "", "", "", true, ""],
+         ["", "note", "varchar(256)", :string, 256, "", "", "", true, ""],
+         ["", "gmt_created", "datetime", :datetime, "", 0, "", "", false, "创建时间"],
+         ["", "gmt_modified", "datetime", :datetime, "", 0, "", "", false, "最后修改时间"],
+         ["", "sasa", "varchar(255)", :string, 255, "", "", "", true, ""]]
+      #+END_EXAMPLE
+     
+**** =vd=
+
+     使用 =visidata= 显示表结构
+**** =table_comment=
+
+     返回该模型的表注释
+
+      例如：
+
+      #+begin_example
+      ARQL ❯ Blog::Post.table_comment
+      #+end_example
+
+      输出：
+
+      #+begin_example
+      "文章表"
+      #+end_example
+     
+**** 添加字段 =add_column=
+     #+BEGIN_EXAMPLE
+       Blog::Student.add_column :note, :text, comment: '备注'
+     #+END_EXAMPLE
+      
+**** 修改字段 =change_column=
+     #+BEGIN_EXAMPLE
+       Blog::Student.change_column :note, :string, comment: '备注'
+     #+END_EXAMPLE
+
+**** 删除字段 =remove_column=
+     #+BEGIN_EXAMPLE
+       Blog::Student.remove_column :note
+     #+END_EXAMPLE
+
+**** 添加索引 =add_index=
+     #+BEGIN_EXAMPLE
+       Blog::Student.add_index :name
+       Blog::Student.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
+     #+END_EXAMPLE
+
+**** 修改字段注释 =change_column_comment=
+     #+BEGIN_EXAMPLE
+       Blog::Student.change_column_comment :note, '备注'
+     #+END_EXAMPLE
+
+**** 修改字段默认值 =change_column_default=
+     #+BEGIN_EXAMPLE
+       Blog::Student.change_column_default :note, '默认值'
+     #+END_EXAMPLE
+      
+**** 修改字段名称 =rename_column=
+     #+BEGIN_EXAMPLE
+       Blog::Student.rename_column :note, :remark
+     #+END_EXAMPLE
+
+**** 修改表名 =rename_table=
+     #+BEGIN_EXAMPLE
+       Blog::Student.rename_table :seitou
+     #+END_EXAMPLE
+
+**** 修改表注释 =change_table_comment=
+     #+BEGIN_EXAMPLE
+       Blog::Student.change_table_comment from: '', to: '学生表'
+     #+END_EXAMPLE
+
+**** 删除表 =drop_table=
+     #+BEGIN_EXAMPLE
+       Blog::Student.drop_table
+     #+END_EXAMPLE
+
+**** 删除索引 =remove_index=
+     #+BEGIN_EXAMPLE
+       Blog::Student.remove_index :age
+       Blog::Student.remove_index name: 'by_branch_party'
+     #+END_EXAMPLE
+      
+**** 查询表注释 =table_comment=
+     #+BEGIN_EXAMPLE
+       Blog::Student.table_comment
+     #+END_EXAMPLE
+
+**** 列出表的索引 =indexes=
+     #+BEGIN_EXAMPLE
+       Blog::Student.indexes
+     #+END_EXAMPLE
+
+*** 模型的实例方法
+**** TODO =t=
      
      =t= 除了可以作为类方法在 ActiveRecord 模型类上调用，也可以作为实例方法在 ActiveRecord 模型实例对象上调用。
 
@@ -476,11 +748,25 @@
         Person.last.t(compact: true)
         Student.where(condition).t(compact: false)
        #+END_EXAMPLE
+     + =:format= 选项，用于指定输出格式，值可以是:
+       - =:terminal= 默认的输出格式，适合在终端中查看
+       - =:org= org-mode 表格格式
+       - =:md= markdown 表格格式
+
+**** =to_insert_sql= / =to_upsert_sql=
+     
+     可以在任何 ActiveRecord 模型实例上调用 =to_insert_sql= / =to_upsert_sql= 方法，获取该对象的插入或更新 SQL 语句。
+     这两个方法也可以在包含 ActiveRecord 模型实例对象的数组对象上调用。
+
+     #+begin_example
+     ARQL ❯ Person.all.to_a.to_insert_sql
+     => "INSERT INTO `person` (`id`,`name`,`age`,`gender`,`grade`,`blood_type`) VALUES (1, 'Jack', 30, NULL, NULL, NULL), (2, 'Jack', 11, 1, NULL, NULL), (3, 'Jack', 12, 1, NULL, NULL), (4, 'Jack', 30, 1, NULL, NULL), (5, 'Jack', 12, 2, NULL, NULL), (6, 'Jack', 2, 2, 2, NULL), (7, 'Jack', 3, 2, 2, NULL), (8, 'Jack', 30, 2, 2, 'AB'), (9, 'Jack', 30, 2, 2, 'AB'), (10, 'Jack', 30, 2, 2, 'AB'), (11, 'Jackson', 30, 2, 2, 'AB') ON DUPLICATE KEY UPDATE `id`=`id`;"
+     #+end_example
 
 **** =v=
      
      =v= 方法用于与 Emacs org babel 集成。
-
+     
 ***** =v= 作为模型类的实例方法
      
       在任何 ActiveRecord 模型实例对象上调用 =v= 方法，可以打印一个数组，数组的第一个元素是 =['Attribute Name',
@@ -526,483 +812,108 @@
       => [[:name, :age], nil, ["Jack", 10], ["Lucy", 20]]
       #+end_example
 
-**** =q=
       
-     #+begin_example
-     ARQL ❯ rs = q 'select count(0) from person;'
-     => #<ActiveRecord::Result:0x00007fd1f8026ad0 @column_types={}, @columns=["count(0)"], @hash_rows=nil, @rows=[[11]]>
-     ARQL ❯ rs.rows
-     => [[11]]
-     #+end_example
+**** =dump=
 
+     将实例对象导出为 =INSERT= SQL 语句，见下文 「dump 数据」章节
+
+**** =write_excel= / =write_csv=
+
+      将实例对象导出为 Excel 或 CSV 文件，见下文 「读写 Excel 和 CSV 文件」章节
+     
+*** =ActiveRecord::Relation= / =ActiveRecord::Result= / =Ransack::Search= / =Array= 上的一些通用扩展方法
+     =ActiveRecord::Relation= / =ActiveRecord::Result= / =Ransack::Search= 在逻辑上都可以看成是数组，所以这些方法都可以在这些对象上调用：
+**** TODO =t=
+**** =v=
+     =v= 方法用于与 Emacs org babel 集成。
+     
+      #+begin_example
+      ARQL ❯ Person.last.v
+      => [["Attribute Name", "Attribute Value", "SQL Type", "Comment"],
+       nil,
+       ["id", 11, "int(11) unsigned", ""],
+       ["name", "Jackson", "varchar(64)", ""],
+       ["age", 30, "int(11)", ""],
+       ["gender", 2, "int(4)", ""],
+       ["grade", 2, "int(4)", ""],
+       ["blood_type", "AB", "varchar(4)", ""]]
+      #+end_example
+**** =vd=
+
+     使用 =visidata= 显示「数组」数据
+     
+**** =write_csv= / =write_excel=
+
+      =write_csv= 和 =write_excel= 用于将「数组」数据导出为 CSV 或 Excel 文件，见下文 「读写 Excel 和 CSV 文件」章节
+     
+**** =dump=
+
+      =dump= 方法用于将 ActiveRecord::Relation / ActiveRecord::Result / Ransack::Search 对象导出为 INSERT SQL 语句，见下文 「dump 数据」章节
+     
+*** =Kernel= 扩展方法
+
+    下列对应某种 DDL 操作的方法，在使用时都有一个限制：如果连接了多个环境，那么在调用这些方法时，必须通过 =:env= 选项指定环境名。例如：
+
+    #+BEGIN_SRC ruby
+        create_table :users, env: 'development', comment: '用户表' do |t|
+          t.string :name, comment: '姓名'
+          t.integer :age, comment: '年龄'
+        end
+    #+END_SRC
+     
+**** 创建表 =create_table=
+     #+BEGIN_EXAMPLE
+       create_table :post, id: false, primary_key: :id do |t|
+         t.column :id, :bigint, precison: 19, comment: 'ID'
+         t.column :name, :string, comment: '名称'
+         t.column :gmt_created, :datetime, comment: '创建时间'
+         t.column :gmt_modified, :datetime, comment: '最后修改时间'
+       end
+     #+END_EXAMPLE
+**** 创建多对多关系的中间表 =create_join_table=
+     #+BEGIN_EXAMPLE
+       create_join_table :products, :categories do |t|
+         t.index :product_id
+         t.index :category_id
+       end
+     #+END_EXAMPLE
+**** 删除表 =drop_table=
+     #+BEGIN_EXAMPLE
+       drop_table :post
+     #+END_EXAMPLE
+**** 删除多对多关系的中间表 =drop_join_table=
+     #+BEGIN_EXAMPLE
+       drop_join_table :products, :categories
+     #+END_EXAMPLE
+**** 修改表名 =rename_table=
+     #+BEGIN_EXAMPLE
+       rename_table :post, :posts
+     #+END_EXAMPLE
+      
+       
+**** =models=
+
+     返回将所有环境命名空间下的模型类
+
+**** =table_names=
+
+      返回所有环境下的表名
+
+**** =model_names=
+
+      返回所有环境下的模型类名
+
+**** =q=
+
+     如果只指定了一个环境，那么可以直接使用 =q= 方法来执行原生 SQL 查询，而不需要在 =q= 前面指定命名空间模块，如 =Blog::q=
+
+*** 其它扩展方法
 **** JSON 转换和格式化
      
      在任何对象上调用 =j= 方法，可以得到 JSON 格式的字符串，调用 =jj= 方法可以得到格式化后的 JSON 字符串。
 
      使用 =jp= 方法打印 JSON，使用 =jjp= 方法打印格式化后的 JSON。
 
-**** $C 全局变量
-     
-     Arql 将 =ActiveRecord::Base.connection= 对象赋值给全局可用的 =$C= 全局变量，它代表当前的数据库连接。
-
-     上文中的 =q= 方法实际上是 =$C.exec_query= 方法， =$C= 对象的其他方法也很有用：
-
-***** 创建表
-      #+begin_example
-      ARQL ❯ $C.create_table :post, id: false, primary_key: :id do |t|
-      ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
-      ARQL ❯   t.column :name, :string, comment: '名称'
-      ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
-      ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
-      ARQL ❯ end
-      #+end_example
-
-      =create_table= 同样也被加入到 =Kernel= 下面，所以也可以直接调用 =create_table= 方法：
-
-      #+begin_example
-      ARQL ❯ create_table :post, id: false, primary_key: :id do |t|
-      ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
-      ARQL ❯   t.column :name, :string, comment: '名称'
-      ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
-      ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
-      ARQL ❯ end
-      #+end_example
-
-***** 添加字段
-      
-      #+begin_example
-      $C.add_column :post, :note, :string, comment: '备注'
-      #+end_example
-
-      =add_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =add_column= 方法：
-
-      #+begin_example
-      Post.add_column :note, :string, comment: '备注'
-      #+end_example
-
-***** 修改字段
-      
-      #+begin_example
-      $C.change_column :post, :note, :text, comment: '备注'
-      #+end_example
-
-      =change_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =change_column= 方法：
-
-      #+begin_example
-      Post.change_column :note, :text, comment: '备注'
-      #+end_example
-
-***** 删除字段
-      
-      #+begin_example
-      $C.remove_column :post, :note
-      #+end_example
-
-      =remove_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =remove_column= 方法：
-
-      #+begin_example
-      Post.remove_column :note
-      #+end_example
-
-***** 删除表
-      
-      #+begin_example
-      $C.drop_table :post
-      #+end_example
-
-      =drop_table= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =drop_table= 方法：
-
-      #+begin_example
-      Post.drop_table
-      #+end_example
-
-***** 添加索引
-      
-      #+begin_example
-      ARQL ❯ $C.add_index :post, :name
-      ARQL ❯ $C.add_index(:accounts, [:branch_id, :party_id], unique: true, name: 'by_branch_party')
-      #+end_example
-
-      =add_index= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =add_index= 方法：
-
-      #+begin_example
-      Post.add_index :name
-      Post.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
-      #+end_example
-
-**** =Kernel= 扩展方法
-
-     =Kernel= 模块下的函数可以想语言内置函数一样直接调用，不需要指定模块名。 以下是 Arql 扩展的 =Kernel= 方法：
-
-     Pry 内建了 =show-source= (别名 =$= ) 和 =show-doc= （别名 =?= ）命令，可以查看方法的源码和文档。可以通过 =show-doc= 查看方法的文档。例如：
-
-     #+BEGIN_EXAMPLE
-      ARQL ❯ ? create_table
-     #+END_EXAMPLE
-
-     
-***** 创建表 =create_table=
-      #+BEGIN_EXAMPLE
-        create_table :post, id: false, primary_key: :id do |t|
-          t.column :id, :bigint, precison: 19, comment: 'ID'
-          t.column :name, :string, comment: '名称'
-          t.column :gmt_created, :datetime, comment: '创建时间'
-          t.column :gmt_modified, :datetime, comment: '最后修改时间'
-        end
-      #+END_EXAMPLE
-***** 创建多对多关系的中间表 =create_join_table=
-      #+BEGIN_EXAMPLE
-        create_join_table :products, :categories do |t|
-          t.index :product_id
-          t.index :category_id
-        end
-      #+END_EXAMPLE
-***** 删除表 =drop_table=
-      #+BEGIN_EXAMPLE
-        drop_table :post
-      #+END_EXAMPLE
-***** 删除多对多关系的中间表 =drop_join_table=
-      #+BEGIN_EXAMPLE
-        drop_join_table :products, :categories
-      #+END_EXAMPLE
-***** 修改表名 =rename_table=
-      #+BEGIN_EXAMPLE
-        rename_table :post, :posts
-      #+END_EXAMPLE
-      
-***** =print_tables=
-
-      Arql 提供了一个 =print_tables= 方法，可以将当前数据库中的所有表的信息，导出为：
-
-      + markdown 表格格式:  ~print_tables(:md)~
-      + org-mode 表格格式: ~print_tables(:org)~
-      + create table SQL: ~print_tables(:sql)~
-        
-**** 模型类类方法扩展
-
-     Pry 内建了 =show-source= (别名 =$= ) 和 =show-doc= （别名 =?= ）命令，可以查看方法的源码和文档。可以通过 =show-doc= 查看方法的文档。例如：
-
-     #+BEGIN_EXAMPLE
-      ARQL ❯ ? Student.add_column
-     #+END_EXAMPLE
-     
-***** 添加字段 =add_column=
-      #+BEGIN_EXAMPLE
-        Student.add_column :note, :text, comment: '备注'
-      #+END_EXAMPLE
-      
-***** 修改字段 =change_column=
-      #+BEGIN_EXAMPLE
-        Student.change_column :note, :string, comment: '备注'
-      #+END_EXAMPLE
-
-***** 删除字段 =remove_column=
-      #+BEGIN_EXAMPLE
-        Student.remove_column :note
-      #+END_EXAMPLE
-
-***** 添加索引 =add_index=
-      #+BEGIN_EXAMPLE
-        Student.add_index :name
-        Student.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
-      #+END_EXAMPLE
-
-***** 修改字段注释 =change_column_comment=
-      #+BEGIN_EXAMPLE
-        Student.change_column_comment :note, '备注'
-      #+END_EXAMPLE
-
-***** 修改字段默认值 =change_column_default=
-      #+BEGIN_EXAMPLE
-        Student.change_column_default :note, '默认值'
-      #+END_EXAMPLE
-      
-***** 修改字段名称 =rename_column=
-      #+BEGIN_EXAMPLE
-        Student.rename_column :note, :remark
-      #+END_EXAMPLE
-
-***** 修改表名 =rename_table=
-      #+BEGIN_EXAMPLE
-        Student.rename_table :seitou
-      #+END_EXAMPLE
-
-***** 修改表注释 =change_table_comment=
-      #+BEGIN_EXAMPLE
-        Student.change_table_comment from: '', to: '学生表'
-      #+END_EXAMPLE
-
-***** 删除表 =drop_table=
-      #+BEGIN_EXAMPLE
-        Student.drop_table
-      #+END_EXAMPLE
-
-***** 删除索引 =remove_index=
-      #+BEGIN_EXAMPLE
-        Student.remove_index :age
-        Student.remove_index name: 'by_branch_party'
-      #+END_EXAMPLE
-      
-***** 查询表注释 =table_comment=
-      #+BEGIN_EXAMPLE
-        Student.table_comment
-      #+END_EXAMPLE
-
-***** 列出表的索引 =indexes=
-      #+BEGIN_EXAMPLE
-        Student.indexes
-      #+END_EXAMPLE
-
-**** 读写 Excel 和 CSV 文件
-
-     Arql 集成了 =roo= 和 =caxlsx= 两个 Excel 库，提供了用于解析和生成 Excel 文件的方法。同时，Arql 也提供了用于读写 CSV 文件的方法。
-     
-***** 解析 Excel
-
-      Arql 为 =Kernel= 模块添加了 =parse_excel= 方法，可以用来解析 Excel 文件。例如：
-
-      #+BEGIN_EXAMPLE
-        ARQL ❯ parse_excel 'path/to/excel.xlsx'
-      #+END_EXAMPLE
-
-      文件路径中可以使用 =~/= 表示用户的主目录，Arql 会自动展开。
-
-      
-      也可以在一个表示文件路径的 =String= 对象上调用 =parse_excel= 方法：
-
-      #+BEGIN_EXAMPLE
-        ARQL ❯ 'path/to/excel.xlsx'.parse_excel
-      #+END_EXAMPLE
-
-      =parse_excel= 方法会返回一个 =Hash= 对象，Key 为 Sheet 名称，Value 为 Sheet 的数据，Value 是一个二维数组。例如：
-
-      #+BEGIN_EXAMPLE
-        {
-          'Sheet1' => [
-            ['A1', 'B1', 'C1'],
-            ['A2', 'B2', 'C2'],
-            ['A3', 'B3', 'C3']
-          ],
-          'Sheet2' => [
-            ['A1', 'B1', 'C1'],
-            ['A2', 'B2', 'C2'],
-            ['A3', 'B3', 'C3']
-          ]
-        }
-      #+END_EXAMPLE
-      
-***** 生成 Excel
-      
-      Arql 为 =Hash= / =Array= / =ActiveRecord::Relation= / =ActiveRecord::Base= 对象添加了 =write_excel= 方法，可以用来
-      生成 Excel 文件:
-
-****** 从 =Hash= 对象生成 Excel
-
-       #+BEGIN_EXAMPLE
-         ARQL ❯ obj.write_excel 'path/to/excel.xlsx'
-       #+END_EXAMPLE
-
-       =Hash#write_excel= 要求 Hash 对象 Key 是 Sheet 名称，Value 是 Sheet 的数据，Value 的类型可以是：
-
-       + 一个数组，数组的元素可以是：
-         + 一个数组，表示一行数据
-         + 一个 Hash 对象，表示一行数据，Key 是列名，Value 是列值
-         + 一个 ActiveRecord::Base 对象，表示一行数据
-       + 一个 Hash 对象，一共包含两个键值对：
-         + =:fields=, 一个数组，表示列名
-         + =:data=, 一个二维数组，表示数据
-
-****** 从 =Array= 对象生成 Excel
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ obj.write_excel 'path/to/excel.xlsx', :name, :age, :gender, sheet_name: '订单数据'
-        #+END_EXAMPLE
-
-        其中：
-
-        + =:name, :age, :gender= 这几个参数是列名，如果不指定，会根据数组的第一个元素来确定列名：
-          - 如果元素是 =ActiveRecord::Base= 对象，会使用对象的全部属性名（即数据库字段列表）作为列名
-          - 如果元素是 =Hash= 对象，会使用 =Hash= 的 全部 Key 作为列名
-        + =sheet_name= 指定 Sheet 名称，如果不指定，会使用默认的 Sheet 名称 =Sheet1=
-  
-        =Array= 对象的每一个元素表示一行数据， =Array#write_excel= 要求 Array 对象每个元素：
-        
-        + 一个 =ActiveRecord::Base= 对象
-        + 一个 =Hash= 对象，表示一行数据，Key 是列名，Value 是列值
-        + 一个数组，表示一行数据
-       
-****** 从 =ActiveRecord::Base= 对象生成 Excel
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ Student.find(123).write_excel 'path/to/excel.xlsx', sheet_name: '学生数据'
-        #+END_EXAMPLE
-
-        =ActiveRecord::Base= 的 =write_excel= 对象实际上就是把这个 =ActiveRecord::Base= 对象包装成一个只有一个元素的 =Array= 对
-        象，然后调用 =Array= 的 =write_excel= 方法。
-       
-****** 从 =ActiveRecord::Relation= 对象生成 Excel
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ Student.where(gender: 'M').write_excel 'path/to/excel.xlsx', sheet_name: '男学生'
-        #+END_EXAMPLE
-
-        =ActiveRecord::Relation= 的 =write_excel= 对象实际上就是把这个 =ActiveRecord::Relation= 对象转换成一个 =Array= 对象，然
-        后调用 =Array= 的 =write_excel= 方法。
-       
-***** 解析 CSV
-
-      Arql 提供了 =parse_csv= 方法，可以用来解析 CSV 文件：
-
-      #+BEGIN_EXAMPLE
-        ARQL ❯ parse_csv 'path/to/csv.csv'
-      #+END_EXAMPLE
-
-      =parse_csv= 方法返回一个标准库中的 CSV 对象。
-
-      =parse_csv= 可以有以下选项参数：
-
-      - =encoding=, 指定 CSV 文件的编码，默认是 =UTF-16= (with BOM)
-      - =headers=, 指定是否包含表头，默认是 =false=
-      - =col_sep=, 指定列分隔符，默认是 =\t=
-      - =row_sep=, 指定行分隔符，默认是 =\r\n=
-
-      （以上默认值实际就是 Microsoft Office Excel 保存 CSV 文件时默认使用的配置）
-
-      也可以在一个表示文件路径的 =String= 对象上调用 =parse_csv= 方法：
-
-      #+BEGIN_EXAMPLE
-        ARQL ❯ 'path/to/csv.csv'.parse_csv
-      #+END_EXAMPLE
-      
-***** 生成 CSV
-      Arql 为 =Array= / =ActiveRecord::Relation= / =ActiveRecord::Base= 对象添加了 =write_csv= 方法，可以用来生成 CSV 文件:
-      
-****** 从 =Array= 对象生成 CSV
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ obj.write_csv 'path/to/csv.csv', :name, :age, :gender, sheet_name: '订单数据'
-        #+END_EXAMPLE
-
-        用法和 =Array= 对象的 =write_excel= 方法类似。
-          
-        
-****** 从 =ActiveRecord::Base= 对象生成 CSV
-
-       #+BEGIN_EXAMPLE
-         ARQL ❯ Student.find(123).write_csv 'path/to/csv.csv', sheet_name: '学生数据'
-       #+END_EXAMPLE
-
-       用法和 =ActiveRecord::Base= 对象的 =write_excel= 方法类似。
-
-****** 从 =ActiveRecord::Relation= 对象生成 CSV
-
-       #+BEGIN_EXAMPLE
-         ARQL ❯ Student.where(gender: 'M').write_csv 'path/to/csv.csv', sheet_name: '男学生'
-       #+END_EXAMPLE
-
-       用法和 =ActiveRecord::Relation= 对象的 =write_excel= 方法类似。
-
-**** dump 数据
-
-     注意： 仅支持 MySQL 数据库
-
-     Arql 为 =Array= / =ActiveRecord::Base= / =ActiveRecord::Relation= 等对象添加了 =dump= 方法，可以用来导出数据到 SQL 文件：
-     
-     
-***** 从 Array 对象导出数据
-
-       #+BEGIN_EXAMPLE
-         ARQL ❯ obj.dump 'path/to/dump.sql', batch_size: 5000
-       #+END_EXAMPLE
-
-       =Array= 对象的每一个元素必须是一个 =ActiveRecord::Base= 对象
-       
-       =batch_size= 参数指定每个批次查询出的数据，默认值为 500
-
-***** 从 ActiveRecord::Base 对象导出数据
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ Student.find(123).dump 'path/to/dump.sql', batch_size: 5000
-        #+END_EXAMPLE
-  
-        =ActiveRecord::Base= 对象的 =dump= 方法实际上就是把这个 =ActiveRecord::Base= 对象包装成一个只有一个元素的 =Array= 对象，然后调用 =Array= 的 =dump= 方法。
-
-***** 从 ActiveRecord::Relation 对象导出数据
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ Student.where(gender: 'M').dump 'path/to/dump.sql', batch_size: 5000
-        #+END_EXAMPLE
-
-        =ActiveRecord::Relation= 的 =dump= 对象实际上就是把这个 =ActiveRecord::Relation= 对象转换成一个 =Array= 对象，然后调用 =Array= 的 =dump= 方法。
-
-          
-***** 调用 ActiveRecord::Base 的 dump 类方法
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ Student.dump 'path/to/dump.sql', no_create_table: false
-        #+END_EXAMPLE
-
-        这个方法会通过 =mysqldump= 命令 把 =Student= 表中的所有数据导出到 SQL 文件中。
-
-        =no_create_table= 参数指定是否在 SQL 文件中包含创建表的语句，默认值为 =false= 。
-
-        
-      
-***** 在全局连接对象 =$C= 上调用 dump 方法
-
-        #+BEGIN_EXAMPLE
-          ARQL ❯ $C.dump 'path/to/dump.sql', no_create_db: false
-        #+END_EXAMPLE
-
-        这个方法会通过 mysqldump 命令把当前数据库中的所有表的数据导出到 SQL 文件中。
-
-        =no_create_db= 参数指定是否在 SQL 文件中包含创建数据库的语句，默认值为 =false= 。
-        
-        
-**** Plot
-
-     Arql 集成了 Ruby 的 =youplot= 库，为 =Array= 添加了一些可以用来绘制图表的方法：
-
-     + =barplot=
-     + =countplot=
-     + =histo=
-     + =lineplot=
-     + =lineplots=
-     + =scatter=
-     + =density=
-     + =boxplot=
-     
-     示例： 
-
-     数量统计图：
-     
-     #+BEGIN_EXAMPLE
-       ARQL@demo247(main) [44] ❯ Student.pluck(:gender)
-       => ["M", "M", "M", "M", "M", "M", "M", "F", "M", "F", "M", "M", "M", "M", "M"]
-       ARQL@demo247(main) [45] ❯ Student.pluck(:gender).countplot
-            ┌                                        ┐ 
-          M ┤■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 13.0   
-          F ┤■■■■■ 2.0                                 
-            └                                        ┘ 
-     #+END_EXAMPLE
-
-     分布图：
-     
-     #+BEGIN_EXAMPLE
-       ARQL@jicai.dev(main) [18] ❯ Order.last(20).pluck(:order_sum)
-       => [0.21876e5, 0.336571e5, 0.1934e5, 0.966239e4, 0.38748e3, 0.31092e4, 0.483e5, 0.445121e5, 0.1305e4, 0.2296e6, 0.943e5, 0.352e4, 0.3756e5, 0.323781e5, 0.7937622e5, 0.982e4, 0.338393e5, 0.316597e5, 0.213678e5, 0.336845e5]
-       ARQL@jicai.dev(main) [19] ❯ Order.last(20).pluck(:order_sum).histo
-                               ┌                                        ┐ 
-          [     0.0,  50000.0) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 17   
-          [ 50000.0, 100000.0) ┤▇▇▇▇ 2                                    
-          [100000.0, 150000.0) ┤ 0                                        
-          [150000.0, 200000.0) ┤ 0                                        
-          [200000.0, 250000.0) ┤▇▇ 1                                      
-                               └                                        ┘ 
-                                               Frequency
-       
-     #+END_EXAMPLE
-     
 **** =String=
      
 ***** =Srting#p=
@@ -1038,20 +949,356 @@
        id = ID.uuid # 生成一个 UUID
      #+END_EXAMPLE
 
-**** Ransack
+*** $C 全局变量
+     
+    Arql 将 =ActiveRecord::Base.connection= 对象赋值给全局可用的 =$C= 全局变量，它代表当前的数据库连接。
 
-     Arql 集成了 =Ransack=:
+    上文中的 =q= 方法实际上是 =$C.exec_query= 方法， =$C= 对象的其他方法也很有用：
+
+**** 创建表
+     #+begin_example
+     ARQL ❯ $C.create_table :post, id: false, primary_key: :id do |t|
+     ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
+     ARQL ❯   t.column :name, :string, comment: '名称'
+     ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
+     ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
+     ARQL ❯ end
+     #+end_example
+
+     =create_table= 同样也被加入到 =Kernel= 下面，所以也可以直接调用 =create_table= 方法：
+
+     #+begin_example
+     ARQL ❯ create_table :post, id: false, primary_key: :id do |t|
+     ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
+     ARQL ❯   t.column :name, :string, comment: '名称'
+     ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
+     ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
+     ARQL ❯ end
+     #+end_example
+
+**** 添加字段
+      
+     #+begin_example
+     $C.add_column :post, :note, :string, comment: '备注'
+     #+end_example
+
+     =add_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =add_column= 方法：
+
+     #+begin_example
+     Post.add_column :note, :string, comment: '备注'
+     #+end_example
+
+**** 修改字段
+      
+     #+begin_example
+     $C.change_column :post, :note, :text, comment: '备注'
+     #+end_example
+
+     =change_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =change_column= 方法：
+
+     #+begin_example
+     Post.change_column :note, :text, comment: '备注'
+     #+end_example
+
+**** 删除字段
+      
+     #+begin_example
+     $C.remove_column :post, :note
+     #+end_example
+
+     =remove_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =remove_column= 方法：
+
+     #+begin_example
+     Post.remove_column :note
+     #+end_example
+
+**** 删除表
+      
+     #+begin_example
+     $C.drop_table :post
+     #+end_example
+
+     =drop_table= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =drop_table= 方法：
+
+     #+begin_example
+     Post.drop_table
+     #+end_example
+
+**** 添加索引
+      
+     #+begin_example
+     ARQL ❯ $C.add_index :post, :name
+     ARQL ❯ $C.add_index(:accounts, [:branch_id, :party_id], unique: true, name: 'by_branch_party')
+     #+end_example
+
+     =add_index= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =add_index= 方法：
+
+     #+begin_example
+     Post.add_index :name
+     Post.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
+     #+end_example
+
+*** 读写 Excel 和 CSV 文件
+
+    Arql 集成了 =roo= 和 =caxlsx= 两个 Excel 库，提供了用于解析和生成 Excel 文件的方法。同时，Arql 也提供了用于读写 CSV 文件的方法。
+     
+**** 解析 Excel
+
+     Arql 为 =Kernel= 模块添加了 =parse_excel= 方法，可以用来解析 Excel 文件。例如：
+
+     #+BEGIN_EXAMPLE
+       ARQL ❯ parse_excel 'path/to/excel.xlsx'
+     #+END_EXAMPLE
+
+     文件路径中可以使用 =~/= 表示用户的主目录，Arql 会自动展开。
+
+      
+     也可以在一个表示文件路径的 =String= 对象上调用 =parse_excel= 方法：
+
+     #+BEGIN_EXAMPLE
+       ARQL ❯ 'path/to/excel.xlsx'.parse_excel
+     #+END_EXAMPLE
+
+     =parse_excel= 方法会返回一个 =Hash= 对象，Key 为 Sheet 名称，Value 为 Sheet 的数据，Value 是一个二维数组。例如：
+
+     #+BEGIN_EXAMPLE
+       {
+         'Sheet1' => [
+           ['A1', 'B1', 'C1'],
+           ['A2', 'B2', 'C2'],
+           ['A3', 'B3', 'C3']
+         ],
+         'Sheet2' => [
+           ['A1', 'B1', 'C1'],
+           ['A2', 'B2', 'C2'],
+           ['A3', 'B3', 'C3']
+         ]
+       }
+     #+END_EXAMPLE
+      
+**** 生成 Excel
+      
+     Arql 为 =Hash= / =Array= / =ActiveRecord::Relation= / =ActiveRecord::Base= 对象添加了 =write_excel= 方法，可以用来
+     生成 Excel 文件:
+
+***** 从 =Hash= 对象生成 Excel
 
       #+BEGIN_EXAMPLE
-        Student.ransack(name_cont: 'Tom').result # 模糊查询名字中包含 'Tom' 的学生
-        Student.ransack(name_start: 'Tom').result # 模糊查询名字以 'Tom' 开头的学生
+        ARQL ❯ obj.write_excel 'path/to/excel.xlsx'
       #+END_EXAMPLE
-     
-*** Emacs Org Babel 集成
-    
-    这里有一个 [[https://github.com/lululau/spacemacs-layers/blob/master/ob-arql/local/ob-arql/ob-arql.el][ob-arql]] 用于集成 Emacs org babel。
 
-** Guides and Tips
+      =Hash#write_excel= 要求 Hash 对象 Key 是 Sheet 名称，Value 是 Sheet 的数据，Value 的类型可以是：
+
+      + 一个数组，数组的元素可以是：
+        + 一个数组，表示一行数据
+        + 一个 Hash 对象，表示一行数据，Key 是列名，Value 是列值
+        + 一个 ActiveRecord::Base 对象，表示一行数据
+      + 一个 Hash 对象，一共包含两个键值对：
+        + =:fields=, 一个数组，表示列名
+        + =:data=, 一个二维数组，表示数据
+
+***** 从 =Array= 对象生成 Excel
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ obj.write_excel 'path/to/excel.xlsx', :name, :age, :gender, sheet_name: '订单数据'
+       #+END_EXAMPLE
+
+       其中：
+
+       + =:name, :age, :gender= 这几个参数是列名，如果不指定，会根据数组的第一个元素来确定列名：
+         - 如果元素是 =ActiveRecord::Base= 对象，会使用对象的全部属性名（即数据库字段列表）作为列名
+         - 如果元素是 =Hash= 对象，会使用 =Hash= 的 全部 Key 作为列名
+       + =sheet_name= 指定 Sheet 名称，如果不指定，会使用默认的 Sheet 名称 =Sheet1=
+  
+       =Array= 对象的每一个元素表示一行数据， =Array#write_excel= 要求 Array 对象每个元素：
+        
+       + 一个 =ActiveRecord::Base= 对象
+       + 一个 =Hash= 对象，表示一行数据，Key 是列名，Value 是列值
+       + 一个数组，表示一行数据
+       
+***** 从 =ActiveRecord::Base= 对象生成 Excel
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.find(123).write_excel 'path/to/excel.xlsx', sheet_name: '学生数据'
+       #+END_EXAMPLE
+
+       =ActiveRecord::Base= 的 =write_excel= 对象实际上就是把这个 =ActiveRecord::Base= 对象包装成一个只有一个元素的 =Array= 对
+       象，然后调用 =Array= 的 =write_excel= 方法。
+       
+***** 从 =ActiveRecord::Relation= 对象生成 Excel
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.where(gender: 'M').write_excel 'path/to/excel.xlsx', sheet_name: '男学生'
+       #+END_EXAMPLE
+
+       =ActiveRecord::Relation= 的 =write_excel= 对象实际上就是把这个 =ActiveRecord::Relation= 对象转换成一个 =Array= 对象，然
+       后调用 =Array= 的 =write_excel= 方法。
+       
+**** 解析 CSV
+
+     Arql 提供了 =parse_csv= 方法，可以用来解析 CSV 文件：
+
+     #+BEGIN_EXAMPLE
+       ARQL ❯ parse_csv 'path/to/csv.csv'
+     #+END_EXAMPLE
+
+     =parse_csv= 方法返回一个标准库中的 CSV 对象。
+
+     =parse_csv= 可以有以下选项参数：
+
+     - =encoding=, 指定 CSV 文件的编码，默认是 =UTF-16= (with BOM)
+     - =headers=, 指定是否包含表头，默认是 =false=
+     - =col_sep=, 指定列分隔符，默认是 =\t=
+     - =row_sep=, 指定行分隔符，默认是 =\r\n=
+
+     （以上默认值实际就是 Microsoft Office Excel 保存 CSV 文件时默认使用的配置）
+
+     也可以在一个表示文件路径的 =String= 对象上调用 =parse_csv= 方法：
+
+     #+BEGIN_EXAMPLE
+       ARQL ❯ 'path/to/csv.csv'.parse_csv
+     #+END_EXAMPLE
+      
+**** 生成 CSV
+     Arql 为 =Array= / =ActiveRecord::Relation= / =ActiveRecord::Base= 对象添加了 =write_csv= 方法，可以用来生成 CSV 文件:
+      
+***** 从 =Array= 对象生成 CSV
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ obj.write_csv 'path/to/csv.csv', :name, :age, :gender, sheet_name: '订单数据'
+       #+END_EXAMPLE
+
+       用法和 =Array= 对象的 =write_excel= 方法类似。
+          
+        
+***** 从 =ActiveRecord::Base= 对象生成 CSV
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ Student.find(123).write_csv 'path/to/csv.csv', sheet_name: '学生数据'
+      #+END_EXAMPLE
+
+      用法和 =ActiveRecord::Base= 对象的 =write_excel= 方法类似。
+
+***** 从 =ActiveRecord::Relation= 对象生成 CSV
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ Student.where(gender: 'M').write_csv 'path/to/csv.csv', sheet_name: '男学生'
+      #+END_EXAMPLE
+
+      用法和 =ActiveRecord::Relation= 对象的 =write_excel= 方法类似。
+
+*** dump 数据
+
+    注意： 仅支持 MySQL 数据库
+
+    Arql 为 =Array= / =ActiveRecord::Base= / =ActiveRecord::Relation= 等对象添加了 =dump= 方法，可以用来导出数据到 SQL 文件：
+     
+     
+**** 从 Array 对象导出数据
+
+      #+BEGIN_EXAMPLE
+        ARQL ❯ obj.dump 'path/to/dump.sql', batch_size: 5000
+      #+END_EXAMPLE
+
+      =Array= 对象的每一个元素必须是一个 =ActiveRecord::Base= 对象
+       
+      =batch_size= 参数指定每个批次查询出的数据，默认值为 500
+
+**** 从 ActiveRecord::Base 对象导出数据
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.find(123).dump 'path/to/dump.sql', batch_size: 5000
+       #+END_EXAMPLE
+  
+       =ActiveRecord::Base= 对象的 =dump= 方法实际上就是把这个 =ActiveRecord::Base= 对象包装成一个只有一个元素的 =Array= 对象，然后调用 =Array= 的 =dump= 方法。
+
+**** 从 ActiveRecord::Relation 对象导出数据
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.where(gender: 'M').dump 'path/to/dump.sql', batch_size: 5000
+       #+END_EXAMPLE
+
+       =ActiveRecord::Relation= 的 =dump= 对象实际上就是把这个 =ActiveRecord::Relation= 对象转换成一个 =Array= 对象，然后调用 =Array= 的 =dump= 方法。
+
+**** 调用 ActiveRecord::Base 的 dump 类方法
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ Student.dump 'path/to/dump.sql', no_create_table: false
+       #+END_EXAMPLE
+
+       这个方法会通过 =mysqldump= 命令 把 =Student= 表中的所有数据导出到 SQL 文件中。
+
+       =no_create_table= 参数指定是否在 SQL 文件中包含创建表的语句，默认值为 =false= 。
+
+        
+**** 在全局连接对象 =$C= 上调用 dump 方法
+
+       #+BEGIN_EXAMPLE
+         ARQL ❯ $C.dump 'path/to/dump.sql', no_create_db: false
+       #+END_EXAMPLE
+
+       这个方法会通过 mysqldump 命令把当前数据库中的所有表的数据导出到 SQL 文件中。
+
+       =no_create_db= 参数指定是否在 SQL 文件中包含创建数据库的语句，默认值为 =false= 。
+        
+*** Plot
+
+    Arql 集成了 Ruby 的 =youplot= 库，为 =Array= 添加了一些可以用来绘制图表的方法：
+
+    + =barplot=
+    + =countplot=
+    + =histo=
+    + =lineplot=
+    + =lineplots=
+    + =scatter=
+    + =density=
+    + =boxplot=
+     
+    示例： 
+
+    数量统计图：
+     
+    #+BEGIN_EXAMPLE
+      ARQL@demo247(main) [44] ❯ Student.pluck(:gender)
+      => ["M", "M", "M", "M", "M", "M", "M", "F", "M", "F", "M", "M", "M", "M", "M"]
+      ARQL@demo247(main) [45] ❯ Student.pluck(:gender).countplot
+           ┌                                        ┐ 
+         M ┤■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■ 13.0   
+         F ┤■■■■■ 2.0                                 
+           └                                        ┘ 
+    #+END_EXAMPLE
+
+    分布图：
+     
+    #+BEGIN_EXAMPLE
+      ARQL@jicai.dev(main) [18] ❯ Order.last(20).pluck(:order_sum)
+      => [0.21876e5, 0.336571e5, 0.1934e5, 0.966239e4, 0.38748e3, 0.31092e4, 0.483e5, 0.445121e5, 0.1305e4, 0.2296e6, 0.943e5, 0.352e4, 0.3756e5, 0.323781e5, 0.7937622e5, 0.982e4, 0.338393e5, 0.316597e5, 0.213678e5, 0.336845e5]
+      ARQL@jicai.dev(main) [19] ❯ Order.last(20).pluck(:order_sum).histo
+                              ┌                                        ┐ 
+         [     0.0,  50000.0) ┤▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇▇ 17   
+         [ 50000.0, 100000.0) ┤▇▇▇▇ 2                                    
+         [100000.0, 150000.0) ┤ 0                                        
+         [150000.0, 200000.0) ┤ 0                                        
+         [200000.0, 250000.0) ┤▇▇ 1                                      
+                              └                                        ┘ 
+                                              Frequency
+       
+    #+END_EXAMPLE
+     
+*** Ransack
+
+    Arql 集成了 =Ransack=:
+
+     #+BEGIN_EXAMPLE
+       Student.ransack(name_cont: 'Tom').result # 模糊查询名字中包含 'Tom' 的学生
+       Student.ransack(name_start: 'Tom').result # 模糊查询名字以 'Tom' 开头的学生
+     #+END_EXAMPLE
+     
+** Emacs Org Babel 集成
+    
+   这里有一个 [[https://github.com/lululau/spacemacs-layers/blob/master/ob-arql/local/ob-arql/ob-arql.el][ob-arql]] 用于集成 Emacs org babel。
+
+** TODO Guides and Tips
 *** [[./define-associations-zh_CN.org][在 Initializer 文件中定义关联关系]]
 *** [[./initializer-structure-zh_CN.org][将不同环境的初始化代码放在不同的文件中]]
 *** [[./helper-for-datetime-range-query-zh_CN.org][定义快速按时间查询的便利方法]]

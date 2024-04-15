@@ -77,10 +77,10 @@ module Arql
       abbr_name = make_model_abbr_name(model_name, table_name)
       @namespace_module.const_set(abbr_name, model_class)
 
-      if Arql::App.instance.environments&.size == 1
-        Object.const_set(model_name, model_class)
-        Object.const_set(abbr_name, model_class)
-      end
+      # if Arql::App.instance.environments&.size == 1
+      #   Object.const_set(model_name, model_class)
+      #   Object.const_set(abbr_name, model_class)
+      # end
 
       { model: model_class, abbr: "#@namespace::#{abbr_name}", table: table_name }
     end
@@ -207,6 +207,10 @@ module Arql
 
         define_singleton_method(:create_table) do |table_name, **options, &blk|
           definition.connection.create_table(table_name, **options, &blk)
+        end
+
+        define_singleton_method(:dump) do |filename, no_create_db = false|
+          Arql::Mysqldump.new(definition.options).dump_database(filename, no_create_db)
         end
       })
     end

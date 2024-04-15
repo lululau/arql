@@ -11,7 +11,7 @@
             "script": "exe/arql",
             "command": "bundle exec",
             "useTerminal": true,
-            "args": ["-e", "ccpro"],
+            "args": ["-e", "lcldevb,demo247"],
             "askParameters": false
         },
         {
