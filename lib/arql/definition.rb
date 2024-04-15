@@ -192,6 +192,10 @@ module Arql
         define_singleton_method(:q) do |sql|
           definition.connection.exec_query(sql)
         end
+
+        define_singleton_method(:create_table) do |table_name, **options, &blk|
+          definition.connection.create_table(table_name, **options, &blk)
+        end
       })
     end
   end
