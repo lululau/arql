@@ -7,7 +7,7 @@ module Arql
     self.abstract_class = true
 
     define_singleton_method(:indexes) do
-      conn.indexes(table_name).map do |idx|
+      connection.indexes(table_name).map do |idx|
         {
           Table: idx.table,
           Name: idx.name,
