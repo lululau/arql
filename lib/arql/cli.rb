@@ -35,7 +35,7 @@ module Arql
           opts.on('-eENVIRON', '--env=ENVIRON', 'Specify config environment, multiple environments allowed, separated by comma') do |env_names|
             @options.environments = env_names.split(/[,\+:]/)
             if @options.environments.any? { |e| e =~ /^default|arql$/i }
-              $stderr.warn '[default, arql] are reserved environment names, please use another name'
+              warn '[default, arql] are reserved environment names, please use another name'
               exit(1)
             end
           end

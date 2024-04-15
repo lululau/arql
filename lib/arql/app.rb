@@ -45,6 +45,7 @@ module Arql
 
       # env names
       @environments = @options.environments
+      @environments ||= ['default']
 
       print "Defining models..."
       @definitions = config[:environments].each_with_object({}) do |(env_name, env_conf), h|
@@ -64,7 +65,7 @@ module Arql
 
       initializer_file = File.expand_path(config[:options][:initializer])
       unless File.exist?(initializer_file)
-        $stderr.warn "Specified initializer file not found, #{config[:options][:initializer]}"
+        warn "Specified initializer file not found, #{config[:options][:initializer]}"
         exit(1)
       end
       load(initializer_file)
@@ -79,8 +80,8 @@ module Arql
     # Returns the configuration for config file.
     #  or default configuration (built from CLI options) if no environment specified
     def environ_config_from_file
-      unless @options.environments&.all? { |env_names| config_from_file.key?(env_names) }
-        $stderr.warn "Specified ENV `#{@options.env}' not exists in config file"
+      if @options.enviroments.present? || @options.environments&.any? { |env_names| !config_from_file.key?(env_names) }
+        warn "Specified ENV `#{@options.env}' not exists in config file"
         exit(1)
       end
       conf = if @options.environments.present?

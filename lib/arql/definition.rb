@@ -64,16 +64,20 @@ module Arql
       end
     end
 
+    def model_names_mapping
+      @model_names_mapping ||= @options[:model_names] || {}
+    end
+
     def define_model_from_table(table_name, primary_keys)
       model_name = make_model_name(table_name)
       return unless model_name
 
       model_class = make_model_class(table_name, primary_keys)
       @namespace_module.const_set(model_name, model_class)
-      abbr_name = make_model_abbr_name(model_name)
+      abbr_name = make_model_abbr_name(model_name, table_name)
       @namespace_module.const_set(abbr_name, model_class)
 
-      if Arql::App.instance.environments.size == 1
+      if Arql::App.instance.environments&.size == 1
         Object.const_set(model_name, model_class)
         Object.const_set(abbr_name, model_class)
       end
@@ -81,7 +85,10 @@ module Arql
       { model: model_class, abbr: "#@namespace::#{abbr_name}", table: table_name }
     end
 
-    def make_model_abbr_name(model_name)
+    def make_model_abbr_name(model_name, table_name)
+      mapping = model_names_mapping[table_name]
+      return mapping[1] if mapping.present? && mapping.is_a?(Array) && mapping.size > 1
+
       bare_abbr = model_name.gsub(/[a-z]*/, '')
       model_abbr_name = bare_abbr
       1000.times do |idx|
@@ -95,13 +102,18 @@ module Arql
     end
 
     def make_model_name(table_name)
+      mapping = model_names_mapping[table_name]
+      if mapping.present?
+        return mapping if mapping.is_a?(String)
+        return mapping.first if mapping.is_a?(Array) && mapping.size >= 1
+      end
       table_name_prefixes = @options[:table_name_prefixes] || []
       model_name = table_name_prefixes.each_with_object(table_name.dup) do |prefix, name|
         name.sub!(/^#{prefix}/, '')
       end.send(@classify_method)
       model_name.gsub!(/^Module|Class|BaseModel$/, '$&0')
       if model_name !~ /^[A-Z][A-Za-z0-9_]*$/
-        $stderr.warn "Could not make model name from table name: #{table_name}"
+        warn "Could not make model name from table name: #{table_name}"
         return
       end
       model_name

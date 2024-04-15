@@ -29,6 +29,7 @@ module Arql::Commands
         Arql::App.instance.definitions.map do |env_name, definition|
           next unless env_name =~ env_name_regexp
           config = Arql::App.config[:environments][env_name]
+          next unless config[:ssh].present?
           <<~SSH_INFO
 
           #{env_name} SSH Connection Information:
@@ -58,7 +59,7 @@ module Arql::Commands
       env_name_regexp ||= '.*'
       env_name_regexp = Regexp.new(env_name_regexp, Regexp::IGNORECASE)
       output.puts Info::db_info(env_name_regexp)
-      output.puts Info::ssh_info(env_name_regexp) if Arql::App.config[:ssh].present?
+      output.puts Info::ssh_info(env_name_regexp)
     end
   end
 end
