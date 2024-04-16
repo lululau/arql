@@ -28,7 +28,7 @@
     end
   #+END_SRC
 
-  这样，当执行 =arql -e apollo.dev= 或 =arql =e apollo.prod= 时，就会加载 =apollo.rb= 文件中的初始化代码；当执行 =arql
+  这样，当执行 =arql -e apollo.dev= 或 =arql -e apollo.prod= 时，就会加载 =apollo.rb= 文件中的初始化代码；当执行 =arql
   -e space.dev= 或 =arql -e space.prod= 时，就会加载 =space.rb= 文件中的初始化代码。
 
    =apollo.rb= 或 =space.rb= 文件中的代码将在对应的 Namespace Module 下执行：

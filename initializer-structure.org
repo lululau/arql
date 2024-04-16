@@ -27,5 +27,5 @@
     end
   #+END_SRC
 
-  Now, when you run =arql -e apollo.dev= or =arql =e apollo.prod=, the initialization code in the =apollo.rb= file will be loaded; when you run =arql -e space.dev= or =arql -e space.prod=, the initialization code in the =space.rb= file will be loaded.
+  Now, when you run =arql -e apollo.dev= or =arql -e apollo.prod=, the initialization code in the =apollo.rb= file will be loaded; when you run =arql -e space.dev= or =arql -e space.prod=, the initialization code in the =space.rb= file will be loaded.
   
