@@ -338,55 +338,6 @@
        l -c no|num  # 只显示字段名、字段注释中包含 no 或 num 的字段信息
      #+END_EXAMPLE
 
-**** =t=
-     
-     =t= 命令接受一个表名或模型类名作为参数，打印表的定义信息，例如：
-
-     执行 =t Person= 命令会打印 =person= 表的定义信息：
-
-     #+begin_example
-     Table: person
-     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
-     | PK | Name       | SQL Type         | Ruby Type | Limit | Precision | Scale | Default | Nullable | Comment |
-     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
-     | Y  | id         | int(11) unsigned | integer   | 4     |           |       |         | false    |         |
-     |    | name       | varchar(64)      | string    | 64    |           |       |         | true     |         |
-     |    | age        | int(11)          | integer   | 4     |           |       |         | true     |         |
-     |    | gender     | int(4)           | integer   | 4     |           |       |         | true     |         |
-     |    | grade      | int(4)           | integer   | 4     |           |       |         | true     |         |
-     |    | blood_type | varchar(4)       | string    | 4     |           |       |         | true     |         |
-     +----|------------|------------------|-----------|-------|-----------|-------|---------|----------|---------+
-     #+end_example
-
-     另外， =t= 同时也是模型类的一个类方法，执行 =Person.t= 会同样会打印出上述信息。
-
-     其中：
-
-     - =PK= : 是否为主键
-     - =Name= : 列名
-     - =SQL Type= : 数据库类型
-     - =Ruby Type= : Ruby 类型
-     - =Limit= : 长度限制
-     - =Precision= : 精度
-     - =Scale= : 小数位数
-     - =Default= : 默认值
-     - =Nullable= : 是否可为空
-     - =Comment= : 注释
-
-**** =vd=
-
-     =t= 命令在终端中以表格的形式打印表的定义信息，缺点是如果表的列数过多，会导致表格这行，不方便查看。而 =vd=
-     (visidata) 是一个使用 Python 编写的终端数据分析工具，可以在终端中以表格的形式打印表的定义信息，但是支持水平滚动，方
-     便查看。
-
-     如果要使用 Arql 的 =vd= 命令，需要先安装 =visidata=:
-
-      #+begin_src sh
-        pipx install visidata
-      #+end_src
-
-      =vd= 命令和用法和 =t= 命令基本相同，另外， =Array= / =ActiveRecord::Base= 等对象也可以使用 =vd= 方法。
-     
 **** =show-sql= / =hide-sql=
      
      这对命令可以切换 Pry REPL 中 SQL 日志的显示。
