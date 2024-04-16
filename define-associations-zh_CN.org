@@ -5,25 +5,28 @@
   Initializer 文件是一个 Ruby 文件，因此可以在其中定义关联关系，例如：
 
   #+BEGIN_SRC ruby
-    class Student
-      has_many :courses, foreign_key: :student_id, class_name: 'Course'
-      belongs_to :school, foreign_key: :school_id, class_name: 'School'
-
-      has_and_belongs_to_many :teachers, join_table: 'students_teachers', foreign_key: :student_id, association_foreign_key: :teacher_id, class_name: 'Teacher'
-    end
-
-    class Course
-      belongs_to :student, foreign_key: :student_id, class_name: 'Student'
-    end
-
-    class School
-      has_many :students, foreign_key: :school_id, class_name: 'Student'
-    end
-
-    class Teacher
-      has_and_belongs_to_many :students, join_table: 'students_teachers', foreign_key: :teacher_id, association_foreign_key: :student_id, class_name: 'Student'
+    module Blog
+      class Student
+        has_many :courses, foreign_key: :student_id, class_name: 'Course'
+        belongs_to :school, foreign_key: :school_id, class_name: 'School'
+    
+        has_and_belongs_to_many :teachers, join_table: 'students_teachers', foreign_key: :student_id, association_foreign_key: :teacher_id, class_name: 'Teacher'
+      end
+    
+      class Course
+        belongs_to :student, foreign_key: :student_id, class_name: 'Student'
+      end
+    
+      class School
+        has_many :students, foreign_key: :school_id, class_name: 'Student'
+      end
+    
+      class Teacher
+        has_and_belongs_to_many :students, join_table: 'students_teachers', foreign_key: :teacher_id, association_foreign_key: :student_id, class_name: 'Student'
+      end
     end
   #+END_SRC
+
 
   1. =has_one= 表明此表是一对一关系的属主
   2. =belongs_to= 表明此表是一对多或一对一关系的从属方
@@ -36,3 +39,14 @@
 
   可以参考： https://guides.rubyonrails.org/association_basics.html
 
+  考虑到模型类都是定义在 Namespace module 下面的, 因此这里的 Blog 是必要的。
+
+  当然，不管通过 =-e= 选项选择了哪个环境，Arql 默认都会加载 =~/.arql.rb= 或 =~/.arql.d/init.rb= 文件，
+  因此像上述示例中把固定的 Namespace =Blog= 放在默认的初始化文件中, 不是一个好的选择。
+
+  有两种方案解决这个问题：
+
+  1. 使用 arql 时，对于不同的环境，用 =-i= 选项来指定不同的初始化文件，例如: =arql -e blog -i ~/.arql.d/blog.rb=
+  2. 参考 [[./initializer-structure-zh_CN.org][将不同环境的初始化代码放在不同的文件中]]
+
+  

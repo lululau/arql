@@ -116,4 +116,10 @@ module Kernel
       definition.namespace_module.model_names
     end
   end
+
+  def env_config(env_regexp)
+    Arql::App.instance.definitions.find do |env_name, _|
+      env_name =~ env_regexp
+    end.last.options
+  end
 end

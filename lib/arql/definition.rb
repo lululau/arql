@@ -189,6 +189,10 @@ module Arql
 
       Object.const_set(namespace, Module.new {
 
+        define_singleton_method(:config) do
+          definition.options
+        end
+
         define_singleton_method(:models) do
           definition.models.map { |m| m[:model] }
         end

@@ -19,10 +19,11 @@
   然后在 =~/.arql.d/init.eb= 文件中写入以下代码：
 
   #+BEGIN_SRC ruby
-    ["apollo", "space"].each do |project|
-      if Arql::App.env.try { |e| e.include?(project + ".") }
-        load(File.absolute_path(File.dirname(__FILE__) + "/#{project}.rb"))
-        break
+    Dir.glob(File.dirname(__FILE__) + '/*.rb').each do |f|
+      Arql::App.instance.definitions.each do |env, definition|
+        if env.starts_with?(File.basename(f, '.rb'))
+          load(f, definition.namespace_module)
+        end
       end
     end
   #+END_SRC
@@ -30,4 +31,21 @@
   这样，当执行 =arql -e apollo.dev= 或 =arql =e apollo.prod= 时，就会加载 =apollo.rb= 文件中的初始化代码；当执行 =arql
   -e space.dev= 或 =arql -e space.prod= 时，就会加载 =space.rb= 文件中的初始化代码。
 
+   =apollo.rb= 或 =space.rb= 文件中的代码将在对应的 Namespace Module 下执行：
+
+  #+BEGIN_SRC ruby
+    class Astronaut
+      has_many :missions
+    end
+  #+END_SRC
+
+  等价于：
+
+  #+BEGIN_SRC ruby
+    module Apollo
+      class Astronaut
+        has_many :missions
+      end
+    end
+  #+END_SRC
   

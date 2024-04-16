@@ -717,7 +717,7 @@
      #+END_EXAMPLE
 
 *** 模型的实例方法
-**** TODO =t=
+**** =t=
      
      =t= 除了可以作为类方法在 ActiveRecord 模型类上调用，也可以作为实例方法在 ActiveRecord 模型实例对象上调用。
 
@@ -737,11 +737,6 @@
 
      =t= 方法可以接受以下两个选项：
 
-     + =:except= 选项，用于指定不显示的属性名，值可以是字符串或正则表达式，例如：
-       #+BEGIN_EXAMPLE
-        Person.last.t(except: 'id')
-        Student.where(condition).t(except: /id|name/)
-       #+END_EXAMPLE
      + =:compact= 选项，用于指定是否紧凑显示，值可以是 =true= 或 =false= ，如果启用紧凑显示，那些值全部为 =NULL= 的列将不
        会显示，这对于查看那些数据稀疏的表很有帮助，例如：
        #+BEGIN_EXAMPLE
@@ -752,7 +747,7 @@
        - =:terminal= 默认的输出格式，适合在终端中查看
        - =:org= org-mode 表格格式
        - =:md= markdown 表格格式
-
+         
 **** =to_insert_sql= / =to_upsert_sql=
      
      可以在任何 ActiveRecord 模型实例上调用 =to_insert_sql= / =to_upsert_sql= 方法，获取该对象的插入或更新 SQL 语句。
@@ -823,7 +818,53 @@
      
 *** =ActiveRecord::Relation= / =ActiveRecord::Result= / =Ransack::Search= / =Array= 上的一些通用扩展方法
      =ActiveRecord::Relation= / =ActiveRecord::Result= / =Ransack::Search= 在逻辑上都可以看成是数组，所以这些方法都可以在这些对象上调用：
-**** TODO =t=
+**** =t=
+     
+     =t= 方法还可以在包含 ActiveRecord 实例的数组上调用，也可以在 =ActiveRecord::Relation= / =ActiveRecord::Result= / =Ransack::Search= 对象上调用。
+
+     #+begin_example
+     ARQL ❯ Person.last.t
+     +----------------|-----------------|------------------|---------+
+     | Attribute Name | Attribute Value | SQL Type         | Comment |
+     +----------------|-----------------|------------------|---------+
+     | id             | 11              | int(11) unsigned |         |
+     | name           | Jackson         | varchar(64)      |         |
+     | age            | 30              | int(11)          |         |
+     | gender         | 2               | int(4)           |         |
+     | grade          | 2               | int(4)           |         |
+     | blood_type     | AB              | varchar(4)       |         |
+     +----------------|-----------------|------------------|---------+
+     #+end_example
+
+     作为数组和「类数组」对象实例方法时, =t= 方法可以接受多个用于过滤属性的参数，参数的类型可以是：
+
+     + 字符串或 Symbol，对属性进行字面量匹配
+     + 正则表达式，对属性进行正则匹配
+
+     例如, 只显示 =name=, =age= 以及所有名称包含 =time= 字样的属性：
+
+      #+begin_example
+      ARQL ❯ Person.last(10).t('name', :age, /time/i)
+      #+end_example
+      
+      作为数组和「类数组」对象的实例方法的 =t= 还可以接受以下三个选项:
+
+     + =:except= 选项，用于指定不显示的属性名，值可以是字符串或正则表达式，例如：
+       #+BEGIN_EXAMPLE
+        Person.last(10).t(except: 'id')
+        Student.where(condition).t(except: /id|name/)
+       #+END_EXAMPLE
+     + =:compact= 选项，用于指定是否紧凑显示，值可以是 =true= 或 =false= ，如果启用紧凑显示，那些值全部为 =NULL= 的列将不
+       会显示，这对于查看那些数据稀疏的表很有帮助，例如：
+       #+BEGIN_EXAMPLE
+        Person.last(10).t(compact: true)
+        Student.where(condition).t(compact: false)
+       #+END_EXAMPLE
+     + =:format= 选项，用于指定输出格式，值可以是:
+       - =:terminal= 默认的输出格式，适合在终端中查看
+       - =:org= org-mode 表格格式
+       - =:md= markdown 表格格式
+
 **** =v=
      =v= 方法用于与 Emacs org babel 集成。
      
@@ -1298,7 +1339,7 @@
     
    这里有一个 [[https://github.com/lululau/spacemacs-layers/blob/master/ob-arql/local/ob-arql/ob-arql.el][ob-arql]] 用于集成 Emacs org babel。
 
-** TODO Guides and Tips
+** Guides and Tips
 *** [[./define-associations-zh_CN.org][在 Initializer 文件中定义关联关系]]
 *** [[./initializer-structure-zh_CN.org][将不同环境的初始化代码放在不同的文件中]]
 *** [[./helper-for-datetime-range-query-zh_CN.org][定义快速按时间查询的便利方法]]
@@ -1314,19 +1355,6 @@
     #+BEGIN_EXAMPLE
       arql -d db/development.sqlite3
     #+END_EXAMPLE
-    
-*** 根据名称或注释查找字段
-
-    我们在熟悉一个项目的时候，经常会遇到这样的情况：我们知道某个字段的名称或注释，但是不知道它对应的表名和字段名。这时候我们可以使用如下方法来查找：
-
-    #+BEGIN_SRC ruby
-      puts model_classes.flat_map { |m| m.columns.select {|c| c.name =~ /amount/ || c.comment =~ /金额/ }.map {|c| "Table: #{m.table_name}, Column: #{c.name} (#{c.comment})"} }
-      
-      # 输出：
-      # Table: order, Column: entry_amount (订单金额)
-      # Table: sub_order, Column: entry_price (金额)
-    #+END_SRC
-    
 *** [[./ruby-guides-for-java-developer-zh_CN.org][给 Java 开发者的 Ruby 入门简明教程]]
 *** [[./simple-pry-guides-zh_CN.org][简明 Pry 使用指南]]
 *** [[./simple-active-record-guide-zh_CN.org][简明 ActiveRecord 使用指南]]

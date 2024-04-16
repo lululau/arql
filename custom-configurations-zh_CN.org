@@ -1,6 +1,6 @@
 * 配置文件中的自定义配置项
 
-  你可以在配置文件 (如默认的 =~/.arql.yaml= / =~/.arql.d/init.yaml= ) 中定义自己的配置项，然后在代码中通过 =Arql::App.config["CONF_KEY"]-= 来获取配置项的值。
+  你可以在配置文件 (如默认的 =~/.arql.yaml= / =~/.arql.d/init.yaml= ) 中定义自己的配置项，然后在代码中通过 =env_config(/my_env/)["CONF_KEY"]-= 来获取配置项的值。
 
   例如，假设系统对 BankAccount 表的 =account_no= 字段进行了加密，你可以在配置文件中定义加密的密钥：
 
@@ -23,7 +23,7 @@
       def self.encrypt_account_no(account_no)
         cipher = OpenSSL::Cipher.new('AES-128-ECB')
         cipher.encrypt
-        cipher.key = Arql::App.config["encrypt_key"]
+        cipher.key = env_config(/my_env/)["encrypt_key"]
         encrypted = cipher.update(account_no) + cipher.final
         encrypted.unpack('H*').first
       end
@@ -31,7 +31,7 @@
       def self.decrypt_account_no(encrypted_account_no)
         cipher = OpenSSL::Cipher.new('AES-128-ECB')
         cipher.decrypt
-        cipher.key = Arql::App.config["encrypt_key"]
+        cipher.key = env_config(/my_env/)["encrypt_key"]
         decrypted = cipher.update([encrypted_account_no].pack('H*')) + cipher.final
         decrypted
       end
@@ -48,3 +48,40 @@
       end
     end
   #+END_SRC
+
+  也可以直接使用 Namespace Module 的 config 方法来获取配置项的值，例如：
+
+  假设 Namespace Module 为 =NS=, 那么上述代码可以改写为：
+
+  #+BEGIN_SRC ruby
+    class BankAccount
+    
+      def self.encrypt_account_no(account_no)
+        cipher = OpenSSL::Cipher.new('AES-128-ECB')
+        cipher.encrypt
+        cipher.key = NS::config["encrypt_key"]
+        encrypted = cipher.update(account_no) + cipher.final
+        encrypted.unpack('H*').first
+      end
+    
+      def self.decrypt_account_no(encrypted_account_no)
+        cipher = OpenSSL::Cipher.new('AES-128-ECB')
+        cipher.decrypt
+        cipher.key = NS::config["encrypt_key"]
+        decrypted = cipher.update([encrypted_account_no].pack('H*')) + cipher.final
+        decrypted
+      end
+    
+    
+      # 从数据库查询出数据之后，自动解密 account_no 字段
+      after_find do
+        self.password = decrypt_account_no(self.password)
+      end
+    
+      # 保存数据之前，自动加密 account_no 字段
+      before_save do
+        self.password = encrypt_account_no(self.password)
+      end
+    end
+  #+END_SRC
+  

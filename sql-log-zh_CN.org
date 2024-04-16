@@ -7,13 +7,18 @@
   创建一个文件 =~/.arql.d/sql_log.rb= ，内容如下：
 
   #+BEGIN_SRC ruby
-    unless Arql::App.config[:append_sql]
+    unless Arql::App.instance.options.append_sql
       log_root_dir = File.expand_path('~/.arql.d/logs')
-      log_dir = "#{log_root_dir}/%s" % Arql::App.env
+      if Arql::App.instance.environments.present?
+        log_dir = "#{log_root_dir}/%s" % Arql::App.instance.environments.join('_')
+      elsif File.file?(Arql::App.instance.options[:database])
+        log_dir = "#{log_root_dir}/%s" % File.basename(Arql::App.instance.options[:database])
+      end
+    
       FileUtils.mkdir_p(log_dir)
       now = Time.now
       log_file = "#{log_dir}/%s.%s.%s.log" % [Time.now.strftime('%Y_%m%d_%H%M%S'), `hostname -s`.chomp.downcase, Process.pid]
-      Arql::App.config[:append_sql] = log_file
+      Arql::App.instance.options.append_sql = log_file
     
       lfile = File.new(log_file, 'a')
       lfile.sync = true
