@@ -941,95 +941,6 @@
        id = ID.uuid # 生成一个 UUID
      #+END_EXAMPLE
 
-*** $C 全局变量
-     
-    Arql 将 =ActiveRecord::Base.connection= 对象赋值给全局可用的 =$C= 全局变量，它代表当前的数据库连接。
-
-    上文中的 =q= 方法实际上是 =$C.exec_query= 方法， =$C= 对象的其他方法也很有用：
-
-**** 创建表
-     #+begin_example
-     ARQL ❯ $C.create_table :post, id: false, primary_key: :id do |t|
-     ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
-     ARQL ❯   t.column :name, :string, comment: '名称'
-     ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
-     ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
-     ARQL ❯ end
-     #+end_example
-
-     =create_table= 同样也被加入到 =Kernel= 下面，所以也可以直接调用 =create_table= 方法：
-
-     #+begin_example
-     ARQL ❯ create_table :post, id: false, primary_key: :id do |t|
-     ARQL ❯   t.column :id, :bigint, precison: 19, comment: 'ID'
-     ARQL ❯   t.column :name, :string, comment: '名称'
-     ARQL ❯   t.column :gmt_created, :datetime, comment: '创建时间'
-     ARQL ❯   t.column :gmt_modified, :datetime, comment: '最后修改时间'
-     ARQL ❯ end
-     #+end_example
-
-**** 添加字段
-      
-     #+begin_example
-     $C.add_column :post, :note, :string, comment: '备注'
-     #+end_example
-
-     =add_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =add_column= 方法：
-
-     #+begin_example
-     Post.add_column :note, :string, comment: '备注'
-     #+end_example
-
-**** 修改字段
-      
-     #+begin_example
-     $C.change_column :post, :note, :text, comment: '备注'
-     #+end_example
-
-     =change_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =change_column= 方法：
-
-     #+begin_example
-     Post.change_column :note, :text, comment: '备注'
-     #+end_example
-
-**** 删除字段
-      
-     #+begin_example
-     $C.remove_column :post, :note
-     #+end_example
-
-     =remove_column= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =remove_column= 方法：
-
-     #+begin_example
-     Post.remove_column :note
-     #+end_example
-
-**** 删除表
-      
-     #+begin_example
-     $C.drop_table :post
-     #+end_example
-
-     =drop_table= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =drop_table= 方法：
-
-     #+begin_example
-     Post.drop_table
-     #+end_example
-
-**** 添加索引
-      
-     #+begin_example
-     ARQL ❯ $C.add_index :post, :name
-     ARQL ❯ $C.add_index(:accounts, [:branch_id, :party_id], unique: true, name: 'by_branch_party')
-     #+end_example
-
-     =add_index= 也被加入到模型类的类方法中，所以也可以直接在模型类上调用 =add_index= 方法：
-
-     #+begin_example
-     Post.add_index :name
-     Post.add_index [:branch_id, :party_id], unique: true, name: 'by_branch_party'
-     #+end_example
-
 *** 读写 Excel 和 CSV 文件
 
     Arql 集成了 =roo= 和 =caxlsx= 两个 Excel 库，提供了用于解析和生成 Excel 文件的方法。同时，Arql 也提供了用于读写 CSV 文件的方法。
@@ -1222,16 +1133,6 @@
 
        =no_create_table= 参数指定是否在 SQL 文件中包含创建表的语句，默认值为 =false= 。
 
-        
-**** 在全局连接对象 =$C= 上调用 dump 方法
-
-       #+BEGIN_EXAMPLE
-         ARQL ❯ $C.dump 'path/to/dump.sql', no_create_db: false
-       #+END_EXAMPLE
-
-       这个方法会通过 mysqldump 命令把当前数据库中的所有表的数据导出到 SQL 文件中。
-
-       =no_create_db= 参数指定是否在 SQL 文件中包含创建数据库的语句，默认值为 =false= 。
         
 *** Plot
 
