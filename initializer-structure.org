@@ -1,31 +1,59 @@
 * Place your initialization code in a file named after the environment
 
-  If you have multiple environments in your configuration file, you can place the initialization code for each environment in a separate file to avoid conflicts.
 
-  Suppose you have 4 database environments in your configuration file:
+  There are often multiple environment configurations for multiple databases in the configuration file, so you can use the
+  method here to put the initialization code of different environments in different files to avoid conflicts.
 
-  + apollo.dev
-  + apollo.prod
-  + space.dev
-  + space.prod
+  Let's say you have 4 database environments configured in the configuration file:
 
-  You can create the following files in the =~/.arql.d/= directory:
+  - apollo.dev
+  - apollo.prod
+  - space.dev
+  - space.prod
 
-  + apollo.rb
-  + space.rb
 
-  Place the initialization code for the apollo project in the =apollo.rb= file; place the initialization code for the space project in the =space.rb= file.
+  Then you can create the following file in the =~/.arql.d/= directory:
+
+  - apollo.rb
+  - space.rb
+
+
+  Place the initialization code for the Apollo project =apollo.rb= in the file; Place the initialization code for the
+  space project =space.rb= in the file.
+
 
   Then write the following code in the =~/.arql.d/init.eb= file:
 
-  #+BEGIN_SRC ruby
-    ["apollo", "space"].each do |project|
-      if Arql::App.env.try { |e| e.include?(project + ".") }
-        load(File.absolute_path(File.dirname(__FILE__) + "/#{project}.rb"))
-        break
+  #+begin_src ruby
+    Dir.glob(File.dirname(__FILE__) + '/*.rb').each do |f|
+      Arql::App.instance.definitions.each do |env, definition|
+        if env.starts_with?(File.basename(f, '.rb'))
+          load(f, definition.namespace_module)
+        end
       end
     end
-  #+END_SRC
+  #+end_src
 
-  Now, when you run =arql -e apollo.dev= or =arql -e apollo.prod=, the initialization code in the =apollo.rb= file will be loaded; when you run =arql -e space.dev= or =arql -e space.prod=, the initialization code in the =space.rb= file will be loaded.
-  
+
+  In this way, =arql -e apollo.prod= when or is executed, the initialization =apollo.rb= code in the file is loaded, and
+  =arql -e space.prod= when or is executed =arql -e apollo.dev= =arql -e space.dev= , the initialization code in the file
+  is loaded =space.rb=  .
+
+
+  =apollo.rb= The code in the =space.rb= or file will be executed under the corresponding Namespace Module:
+
+  #+begin_src ruby
+    class Astronaut
+      has_many :missions
+    end
+  #+end_src
+
+  Equivalent to:
+
+  #+begin_src ruby
+    module Apollo
+      class Astronaut
+        has_many :missions
+      end
+    end
+  #+end_src

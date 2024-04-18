@@ -5,7 +5,7 @@
   Create a file =~/.arql.d/auto_gen_id.rb= with the following content:
 
   #+BEGIN_SRC ruby
-    class ::ArqlModel
+    class :Arql::BaseModel
       before_create do
         if id.blank?
           id_type = self.class.columns_hash['id'].sql_type.scan(/\w+/).first

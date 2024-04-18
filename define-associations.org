@@ -1,37 +1,60 @@
-* Define associations in Initializers
+* 1. Define the relationship in the initializer file
 
-  You can define associations in Initializers. Arql will generate model classes based on the database schema when it starts, and then load the Initializer file.
 
-  The Initializer file is a Ruby file, so you can define associations in it, for example:
+  Associations can be defined in the initializer file, and when Arql starts, it first generates the model class based on
+  the database schema and then loads the initializer file.
 
-  #+BEGIN_SRC ruby
-    class Student
-      has_many :courses, foreign_key: :student_id, class_name: 'Course'
-      belongs_to :school, foreign_key: :school_id, class_name: 'School'
 
-      has_and_belongs_to_many :teachers, join_table: 'students_teachers', foreign_key: :student_id, association_foreign_key: :teacher_id, class_name: 'Teacher'
+  The initializer file is a Ruby file, so you can define associations within it, for example:
+
+  #+begin_src ruby
+    module Blog
+      class Student
+        has_many :courses, foreign_key: :student_id, class_name: 'Course'
+        belongs_to :school, foreign_key: :school_id, class_name: 'School'
+
+        has_and_belongs_to_many :teachers, join_table: 'students_teachers', foreign_key: :student_id, association_foreign_key: :teacher_id, class_name: 'Teacher'
+      end
+
+      class Course
+        belongs_to :student, foreign_key: :student_id, class_name: 'Student'
+      end
+
+      class School
+        has_many :students, foreign_key: :school_id, class_name: 'Student'
+      end
+
+      class Teacher
+        has_and_belongs_to_many :students, join_table: 'students_teachers', foreign_key: :teacher_id, association_foreign_key: :student_id, class_name: 'Student'
+      end
     end
+  #+end_src
 
-    class Course
-      belongs_to :student, foreign_key: :student_id, class_name: 'Student'
-    end
+  1.  =has_one= Indicates that this table is a one-to-one relationship with the owner
+  2. =belongs_to= Indicates that this table is a subordinate of a one-to-many or one-to-one relationship
+  3. =has_and_belongs_to_many= Indicates that this table is one of the parties to a many-to-many relationship
+  4. =class_name= The model class name of the other party that indicates the relationship (the model class name is
+     actually the CamelCase form of the table name)
+  5. =foreign_key= Indicates the name of the associated field on the side of the dependent table in the association
+  6. =primary_key= Indicates the name of the association field on the side of the master table in the association
+  7. =join_table= In a many-to-many relationship, the name of the intermediate table that is associated with two tables is
+     indicated
+  8. =association_foreign_key= In a many-to-many relationship, indicates the name of the field associated with the other
+     model's model in the intermediate table
 
-    class School
-      has_many :students, foreign_key: :school_id, class_name: 'Student'
-    end
+  可以参考： [[https://guides.rubyonrails.org/association_basics.html]]
 
-    class Teacher
-      has_and_belongs_to_many :students, join_table: 'students_teachers', foreign_key: :teacher_id, association_foreign_key: :student_id, class_name: 'Student'
-    end
-  #+END_SRC
 
-  1. =has_one= indicates that this table is the owner of a one-to-one relationship
-  2. =belongs_to= indicates that this table is the dependent side of a one-to-many or one-to-one relationship
-  3. =has_and_belongs_to_many= indicates that this table is one of the many-to-many relationships
-  4. =class_name= indicates the Model class name of the corresponding relationship (the Model class name is actually the CamelCase form of the table name)
-  5. =foreign_key= indicates the name of the association field on the dependent side of the association
-  6. =primary_key= indicates the name of the association field on the owner side of the association
-  7. =join_table= in many-to-many relationships, indicates the name of the intermediate table that associates the two tables
-  8. =association_foreign_key= in many-to-many relationships, indicates the association field name of the other Model in the intermediate table
+  Considering that the model classes are all defined under the Namespace module, a blog here is necessary.
 
-  You can refer to: https://guides.rubyonrails.org/association_basics.html
+
+  Of course, Arql will load the =~/.arql.rb= OR =~/.arql.d/init.rb= file by default, regardless of which environment is
+  selected via the =-e= options, so putting a fixed namespace =Blog= in the default initialization file like in the
+  example above is not a good choice.
+
+  There are two ways to solve this problem:
+
+  1.
+     When using arql, for different environments, use =-i= the option to specify different initialization files, such as:
+     =arql -e blog -i ~/.arql.d/blog.rb=
+  2. Refer to Put the initialization code for different environments in different files

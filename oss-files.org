@@ -66,13 +66,13 @@
        def initialize(path, bucket: nil)
          @path = path
          unless bucket
-           bucket = Arql::App.config['oss_bucket']
+           bucket = env_config(/./)['oss_bucket']
          end
          @bucket = bucket
        end
      
        def rclone_name
-         Arql::App.config['rclone_name']
+         env_config(/./)['rclone_name']
        end
      
        def info
