@@ -239,7 +239,7 @@
     #+END_SRC
 
     In the above configuration file, a model named for the =students= table will be generated, a model named =LaoShi= for
-    the =teachers= table will be generated for the table, and a constant alias named =LS= will be created for the =Seito=
+    the =teachers= table will be generated for the table, and a constant alias named =LS= will be created for the =LaoShi=
     model. An alias is also generated for the =students= table: =S=
     
 **** Example configuration file
