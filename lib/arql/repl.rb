@@ -6,7 +6,7 @@ require 'rainbow'
 module Arql
   class Repl
     def initialize
-      Pry.config.prompt = Pry::Prompt.new("", "", prompt)
+      Pry.config.prompt = Pry::Prompt.new('', '', prompt) unless App.instance.options.babel_compatable
       Pry.start
     end
 

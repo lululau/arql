@@ -12,6 +12,7 @@ module Arql
       def parse_options!
         @options = OpenStruct.new(config_file: default_config_file,
                                   initializer: default_initializer,
+                                  babel_compatable: false,
                                   ssh: {})
 
 
@@ -95,6 +96,11 @@ module Arql
           opts.on('-ECODE', '--eval=CODE', 'evaluate CODE') do |code|
             @options.code = code
           end
+
+          opts.on('-b', '--babel', 'Enable compatibility for Org-Mode Babel') do
+            @options.babel_compatable = true
+          end
+
 
           opts.on('-S', '--show-sql', 'Show SQL on STDOUT') do
             @options.show_sql = true
