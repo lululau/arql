@@ -774,17 +774,13 @@
      =t= 方法还可以在包含 ActiveRecord 实例的数组上调用，也可以在 =ActiveRecord::Relation= / =ActiveRecord::Result= / =Ransack::Search= 对象上调用。
 
      #+begin_example
-     ARQL ❯ Person.last.t
-     +----------------|-----------------|------------------|---------+
-     | Attribute Name | Attribute Value | SQL Type         | Comment |
-     +----------------|-----------------|------------------|---------+
-     | id             | 11              | int(11) unsigned |         |
-     | name           | Jackson         | varchar(64)      |         |
-     | age            | 30              | int(11)          |         |
-     | gender         | 2               | int(4)           |         |
-     | grade          | 2               | int(4)           |         |
-     | blood_type     | AB              | varchar(4)       |         |
-     +----------------|-----------------|------------------|---------+
+     ARQL ❯ Person.last(2).t
+      +----+----------+--------+----------------------------------+-------+------+---------------------------+---------------------------+
+      | id | name     | gender | id_no                            | phone | note | gmt_created               | gmt_modified              |
+      +----+----------+--------+----------------------------------+-------+------+---------------------------+---------------------------+
+      | 90 | Zhangsan | M      | f09288fb381cc47dd2e56389cf15f0bf |       |      | 2021-04-26 15:32:05 +0800 | 2021-04-26 15:32:05 +0800 |
+      | 91 | Lisi     | F      | fb6fea4b23b1d3c54739774946246e4c |       |      | 2021-04-26 15:32:05 +0800 | 2021-04-26 15:32:05 +0800 |
+      +----+----------+--------+----------------------------------+-------+------+---------------------------+---------------------------+
      #+end_example
 
      作为数组和「类数组」对象实例方法时, =t= 方法可以接受多个用于过滤属性的参数，参数的类型可以是：
@@ -792,10 +788,10 @@
      + 字符串或 Symbol，对属性进行字面量匹配
      + 正则表达式，对属性进行正则匹配
 
-     例如, 只显示 =name=, =age= 以及所有名称包含 =time= 字样的属性：
+     例如, 只显示 =name=, =gender= 以及所有名称包含 =time= 字样的属性：
 
       #+begin_example
-      ARQL ❯ Person.last(10).t('name', :age, /time/i)
+      ARQL ❯ Person.last(2).t('name', :gender, /time/i)
       #+end_example
       
       作为数组和「类数组」对象的实例方法的 =t= 还可以接受以下三个选项:
@@ -803,7 +799,7 @@
      + =:except= 选项，用于指定不显示的属性名，值可以是字符串或正则表达式，例如：
        #+BEGIN_EXAMPLE
         Person.last(10).t(except: 'id')
-        Student.where(condition).t(except: /id|name/)
+        Student.where(condition).t(except: /id|gender/)
        #+END_EXAMPLE
      + =:compact= 选项，用于指定是否紧凑显示，值可以是 =true= 或 =false= ，如果启用紧凑显示，那些值全部为 =NULL= 的列将不
        会显示，这对于查看那些数据稀疏的表很有帮助，例如：

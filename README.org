@@ -850,17 +850,13 @@
      =ActiveRecord::Result= / =Ransack::Search= object.
 
      #+begin_example
-     ARQL ❯ Person.last.t
-     +----------------|-----------------|------------------|---------+
-     | Attribute Name | Attribute Value | SQL Type         | Comment |
-     +----------------|-----------------|------------------|---------+
-     | id             | 11              | int(11) unsigned |         |
-     | name           | Jackson         | varchar(64)      |         |
-     | age            | 30              | int(11)          |         |
-     | gender         | 2               | int(4)           |         |
-     | grade          | 2               | int(4)           |         |
-     | blood_type     | AB              | varchar(4)       |         |
-     +----------------|-----------------|------------------|---------+
+     ARQL ❯ Person.last(2).t
+      +----+----------+--------+----------------------------------+-------+------+---------------------------+---------------------------+
+      | id | name     | gender | id_no                            | phone | note | gmt_created               | gmt_modified              |
+      +----+----------+--------+----------------------------------+-------+------+---------------------------+---------------------------+
+      | 90 | Zhangsan | M      | f09288fb381cc47dd2e56389cf15f0bf |       |      | 2021-04-26 15:32:05 +0800 | 2021-04-26 15:32:05 +0800 |
+      | 91 | Lisi     | F      | fb6fea4b23b1d3c54739774946246e4c |       |      | 2021-04-26 15:32:05 +0800 | 2021-04-26 15:32:05 +0800 |
+      +----+----------+--------+----------------------------------+-------+------+---------------------------+---------------------------+
      #+end_example
 
 
@@ -871,10 +867,10 @@
      - Regular expressions to make regular matches to attributes
 
 
-     For example, only =name= show , =age= and all properties whose names contain the =time= word :
+     For example, only =name= show , =gender= and all properties whose names contain the =time= word :
 
      #+begin_example
-     ARQL ❯ Person.last(10).t('name', :age, /time/i)
+     ARQL ❯ Person.last(2).t('name', :gender, /time/i)
      #+end_example
 
 
