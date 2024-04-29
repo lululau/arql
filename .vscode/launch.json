@@ -6,18 +6,34 @@
     "configurations": [
         {
             "type": "rdbg",
-            "name": "Debug current file with rdbg",
+            "name": "Debug Arql",
             "request": "launch",
             "script": "exe/arql",
             "command": "bundle exec",
             "useTerminal": true,
-            "args": ["-e", "jicai.prod"],
+            "args": [
+                "-e",
+                "${input:env}"
+            ],
             "askParameters": false
         },
         {
             "type": "rdbg",
             "name": "Attach with rdbg",
             "request": "attach"
+        }
+    ],
+    "inputs": [
+        {
+            "id": "env",
+            "type": "command",
+            "command": "extension.commandvariable.pickStringRemember",
+            "args": {
+                "fileName": "${userHome}/.arql.d/init.yml",
+                "pattern": {
+                    "regexp": "^([\\w\\.]+):.*"
+                }
+            }
         }
     ]
 }
