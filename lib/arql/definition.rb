@@ -157,7 +157,7 @@ module Arql
     def get_connection_options
       connect_conf = @options.slice(:adapter, :host, :username, :password,
                                 :database, :encoding, :pool, :port, :socket)
-      connect_conf.merge(@ssh_proxy.database_host_port) if @ssh_proxy
+      connect_conf.merge!(@ssh_proxy.database_host_port) if @ssh_proxy
       connect_conf
     end
 
