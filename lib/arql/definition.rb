@@ -17,6 +17,20 @@ module Arql
         }
       end.t
     end
+
+    define_singleton_method(:like) do |**args|
+      send(:ransack, "#{args.keys.first}_cont" => args.values.first).result
+    end
+
+    def self.method_missing(method_name, *args, &block)
+      if method_name.to_s =~ /^(.+)_like$/
+        attr_name = $1.to_sym
+        return super unless respond_to?(attr_name)
+        send(:like, $1 => args.first)
+      else
+        super
+      end
+    end
   end
 
   class Definition

@@ -19,6 +19,7 @@ require 'kaminari/activerecord'
 require 'composite_primary_keys'
 require 'ransack'
 
+require 'arql/ext/active_record/base'
 require 'arql/ext/active_record/relation'
 require 'arql/ext/active_record/result'
 require 'arql/ext/ransack/search'
