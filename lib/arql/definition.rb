@@ -144,6 +144,8 @@ module Arql
         end
         self.table_name = table_name
         self.inheritance_column = nil
+        order_column = options[:order_column]
+        self.implicit_order_column = order_column if order_column
         ActiveRecord.default_timezone = :local
         if options[:created_at].present?
           define_singleton_method :timestamp_attributes_for_create do
