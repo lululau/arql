@@ -76,6 +76,16 @@ module Arql
         model[:comment] = @comments[table_name]
         @models << model
       end
+
+      order_column = @options[:order_column]
+      if order_column
+        Thread.new do
+          @models.each do |model|
+            model_class = model[:model]
+            model_class.implicit_order_column = order_column if model_class.column_names.include?(order_column)
+          end
+        end
+      end
     end
 
     def model_names_mapping
@@ -144,8 +154,6 @@ module Arql
         end
         self.table_name = table_name
         self.inheritance_column = nil
-        order_column = options[:order_column]
-        self.implicit_order_column = order_column if order_column
         ActiveRecord.default_timezone = :local
         if options[:created_at].present?
           define_singleton_method :timestamp_attributes_for_create do
