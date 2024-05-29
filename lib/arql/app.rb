@@ -25,6 +25,24 @@ module Arql
       def config
         instance.config
       end
+
+      def create(options)
+        options = {
+          config_file: default_config_file,
+          initializer: default_initializer,
+          babel_compatable: false,
+          ssh: {}
+        }.merge(options)
+        options = OpenStruct.new(options)
+        app = App.new(options)
+        app.instance_exec do
+          show_sql if should_show_sql?
+          write_sql if should_write_sql?
+          append_sql if should_append_sql?
+        end
+        require 'arql/commands'
+        app
+      end
     end
 
     def prompt
