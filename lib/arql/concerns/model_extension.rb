@@ -17,19 +17,17 @@ module Arql
     end
 
     def t(compact: false, format: :terminal)
-      puts Terminal::Table.new { |t|
-        t.style = self.class.table_style_for_format(format)
-        v(compact: compact).each { |row| t << (row || :separator) }
-      }.try { |e|
-        case format
-        when :md
-          e.to_s.lines.map { |l| '  ' + l }.join
-        when :org
-          e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-        else
-          e.to_s
-        end
-      }
+      tbl = Arql::Table.new do |t|
+        values = v(compact: compact)
+        t.headers = values&.first || []
+        (values[2..] || []).each { |row| t.body << (row || []) } if values.size > 2
+      end
+
+      if $iruby && format.to_s == 'terminal'
+        return tbl.to_iruby
+      else
+        puts tbl.to_terminal(format)
+      end
     end
 
     def vd(compact: false)
@@ -68,7 +66,6 @@ module Arql
     end
 
     class_methods do
-
       def v
         t = [['PK', 'Name', 'SQL Type', 'Ruby Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']]
         t << nil
@@ -95,23 +92,21 @@ module Arql
         when :sql
           '-- '
         end
-        puts "\n#{heading_prefix}Table: #{table_name}\n\n"
-        if format == :sql
+        caption = "\n#{heading_prefix}Table: #{table_name}\n\n"
+        if format.to_s == 'sql'
           puts to_create_sql + ';'
         else
-          puts(Terminal::Table.new { |t|
-            t.style = self.table_style_for_format(format)
-            v.each { |row| t << (row || :separator) }
-          }.try { |e|
-            case format
-            when :md
-              e.to_s.lines.map { |l| '  ' + l }.join
-            when :org
-              e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-            else
-              e.to_s
-            end
-          })
+          tbl = Arql::Table.new(caption) do |t|
+            values = v()
+            t.headers = values&.first || []
+            (values[2..] || []).each { |row| t.body << (row || []) } if values.size > 2
+          end
+
+          if $iruby && format.to_s == 'terminal'
+            return tbl.to_iruby
+          else
+            puts tbl.to_terminal(format)
+          end
         end
       end
 
@@ -144,24 +139,6 @@ module Arql
 
       def dump(filename, no_create_table=false)
         Arql::Mysqldump.new(superclass.definition.options).dump_table(filename, table_name, no_create_table)
-      end
-
-      def table_style_for_format(format)
-        case format.to_s
-        when 'md'
-          {
-            border_top: false,
-            border_bottom: false,
-            border_i: '|'
-          }
-        when 'org'
-          {
-            border_top: false,
-            border_bottom: false,
-          }
-        else
-          {}
-        end
       end
     end
   end

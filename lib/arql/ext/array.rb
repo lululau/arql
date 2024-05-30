@@ -32,46 +32,25 @@ class Array
       # if options[:compact]
       #   attrs = attrs.select { |e| any { |r| r.attributes[e.to_s]&.present? } }
       # end
-      puts Terminal::Table.new { |t|
+      tbl = Arql::Table.new { |t|
         t.style = table_style_for_format(format)
-        t << attrs
-        t << :separator
+        t.headers = attrs
         each do |e|
-          t << e.attributes.values_at(*attrs.map(&:to_s))
-        end
-      }.try { |e|
-        case format
-        when 'md'
-          e.to_s.lines.map { |l| '  ' + l }.join
-        when 'org'
-          e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-        else
-          e.to_s
+          t.body << e.attributes.values_at(*attrs.map(&:to_s))
         end
       }
     else
-      table = Terminal::Table.new { |t|
-        t.style = table_style_for_format(format)
-        v(**options).each { |row| t << (row || :separator)}
-      }.try { |e|
-        case format
-        when 'md'
-          e.to_s.lines.map { |l| '  ' + l }.join
-        when 'org'
-          e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-        else
-          e.to_s
-        end
+      values = v(**options)
+      tbl = Arql::Table.new { |t|
+        t.headers = values&.first || []
+        (values[2..] || []).each { |row| t.body << (row || []) } if values.size > 2
       }
+    end
 
-      terminal_width = `tput cols`.to_i
-      if table.lines.first.size > terminal_width
-        table = table.lines.map(&:chomp)
-        puts table[0..2].join("\n")
-        puts table[3..-1].join("\n#{'-' * terminal_width}\n")
-      else
-        puts table
-      end
+    if $iruby
+      tbl.to_iruby
+    else
+      puts tbl.to_terminal(format)
     end
   end
 

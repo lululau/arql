@@ -1,3 +1,4 @@
+ENV['RAILS_DISABLE_DEPRECATED_TO_S_CONVERSION'] = 'true'
 require 'table_print'
 require 'roo'
 require 'caxlsx'
@@ -24,5 +25,14 @@ require 'arql/ext/active_record/relation'
 require 'arql/ext/active_record/result'
 require 'arql/ext/ransack/search'
 
+$iruby = false
+
 module Arql
+  def self.create(options)
+    if ::Object.const_defined?(:IRuby) && ::IRuby.const_defined?(:OStream) && $stdout.is_a?(IRuby::OStream)
+      IRuby::Kernel.instance.switch_backend!(:pry)
+      $iruby = true
+    end
+    App.create(options)
+  end
 end

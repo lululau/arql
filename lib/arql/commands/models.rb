@@ -1,14 +1,17 @@
 require 'terminal-table'
+require 'arql/table'
 
 module Arql::Commands
   module Models
     class << self
       def filter_tables(env_name, definition, format, table_regexp=nil)
         result = ''
-        result << '-- ' if format == 'sql'
-        result << "Environment: #{env_name}\n"
-        result << "------------------------------\n\n"
-        if format == 'sql'
+        if format.to_s == 'sql'
+          result << '-- '
+          result << "Environment: #{env_name}\n"
+          result << "------------------------------\n\n"
+        end
+        if format.to_s == 'sql'
           definition.models.each do |model|
             if table_regexp? || ( model[:table] =~ table_regexp || model[:comment] =~ table_regexp )
               result << "-- Table: #{table_name}\n\n"
@@ -16,77 +19,43 @@ module Arql::Commands
             end
           end
         else
-          Terminal::Table.new do |t|
-            t.style = table_style_for_format(format)
-            t << ['Table Name', 'Model Class', 'Abbr', 'Comment']
-            t << :separator
+          tbl = Arql::Table.new("Environment: #{env_name}") { |t|
+            t.headers = ['Table Name', 'Model Class', 'Abbr', 'Comment']
             definition.models.each do |model|
               if table_regexp.nil? || ( model[:table] =~ table_regexp || model[:comment] =~ table_regexp )
-                t << [model[:table], model[:model].name, model[:abbr] || '', model[:comment] || '']
+                t.body << [model[:table], model[:model].name, model[:abbr] || '', model[:comment] || '']
               end
             end
-          end.try { |e|
-            case format
-            when 'md'
-              result << e.to_s.lines.map { |l| '  ' + l }.join
-            when 'org'
-              result << e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-            else
-              result << e.to_s
-            end
           }
+          if $iruby && format.to_s == 'terminal'
+            return tbl.to_iruby
+          else
+            result << tbl.to_terminal(format)
+          end
         end
         result
       end
 
       def filter_columns(env_name, definition, format, column_regexp=nil)
-        result = ''
-        result << '-- ' if format == 'sql'
-        result << "Environment: #{env_name}\n"
-        result << "------------------------------\n\n"
-        Terminal::Table.new do |t|
-          t.style = table_style_for_format(format)
-          t << ['Table', 'Model', 'Name', 'SQL Type', 'Ruby Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
-          t << :separator
+        tbl = Arql::Table.new("Environment: #{env_name}") { |t|
+          t.headers = ['Table', 'Model', 'Name', 'SQL Type', 'Ruby Type', 'Limit', 'Precision', 'Scale', 'Default', 'Nullable', 'Comment']
           definition.models.each do |model_def|
             model_class = model_def[:model]
             matched_columns = model_class.columns.select { |column| column.name =~ column_regexp || column.comment =~ column_regexp }
             next if matched_columns.empty?
             matched_columns.each do |column|
-              t << [model_def[:table], model_class.name, column.name, column.sql_type,
+              t.body << [model_def[:table], model_class.name, column.name, column.sql_type,
                     column.sql_type_metadata.type, column.sql_type_metadata.limit || '',
                     column.sql_type_metadata.precision || '', column.sql_type_metadata.scale || '', column.default || '',
                     column.null, "#{model_def[:comment]} - #{column.comment}"]
             end
           end
-        end.try { |e|
-          case format
-          when 'md'
-            result << e.to_s.lines.map { |l| '  ' + l }.join
-          when 'org'
-            result << e.to_s.lines.map { |l| '  ' + l.gsub(/^\+|\+$/, '|') }.join
-          else
-            result << e.to_s
-          end
         }
-        result
-      end
 
-      def table_style_for_format(format)
-        case format
-        when 'md'
-          {
-            border_top: false,
-            border_bottom: false,
-            border_i: '|'
-          }
-        when 'org'
-          {
-            border_top: false,
-            border_bottom: false,
-          }
+        if $iruby && format.to_s == 'terminal'
+          return tbl.to_iruby
         else
-          {}
+          result << tbl.to_terminal(format)
         end
       end
     end

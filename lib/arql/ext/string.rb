@@ -11,6 +11,17 @@ class String
     expa
   end
 
+  def to_link
+    html = <<~EOF
+    <a href="#{expa}" target="_blank">#{expa}</a>
+    EOF
+    IRuby.display(html, mime: 'text/html')
+  end
+
+  def to_file
+    File.open(expa)
+  end
+
   def parse_excel
     if File.file?(File.expand_path(self))
       Kernel.parse_excel(File.expand_path(self))

@@ -41,7 +41,19 @@ module Arql
           append_sql if should_append_sql?
         end
         require 'arql/commands'
-        app
+        nil
+      end
+
+      def default_config_file
+        ['~/.arql.yml', '~/.arql.yaml', '~/.arql.d/init.yml', '~/.arql.d/init.yaml'].find { |f|
+          File.file?(File.expand_path(f))
+        }.try { |f| File.expand_path(f) }
+      end
+
+      def default_initializer
+        ['~/.arql.rb', '~/.arql.d/init.rb',].find { |f|
+          File.file?(File.expand_path(f))
+        }.try { |f| File.expand_path(f) }
       end
     end
 
