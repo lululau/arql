@@ -1,3 +1,3 @@
 module Arql
-  VERSION = "0.4.6"
+  VERSION = "0.4.7"
 end
