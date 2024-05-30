@@ -55,7 +55,7 @@ module Arql::Commands
         if $iruby && format.to_s == 'terminal'
           return tbl.to_iruby
         else
-          result << tbl.to_terminal(format)
+          return tbl.to_terminal(format)
         end
       end
     end
