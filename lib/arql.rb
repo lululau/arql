@@ -36,3 +36,8 @@ module Arql
     App.create(options)
   end
 end
+
+if ::Object.const_defined?(:IRuby)
+  require 'arql/chart'
+  ::Kernel.include(Arql::Chart)
+end

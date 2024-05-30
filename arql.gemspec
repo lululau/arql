@@ -44,5 +44,6 @@ Gem::Specification.new do |spec|
   spec.add_dependency 'ransack', '~> 3.2.1'
   spec.add_dependency 'youplot', '~> 0.4.5'
   spec.add_dependency 'tty-tree', '~> 0.4.0'
+  spec.add_dependency 'chartkick', '~> 5.0.7'
   spec.add_development_dependency "gem-release", "~> 2.2.2"
 end
