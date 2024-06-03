@@ -33,7 +33,6 @@ class Array
       #   attrs = attrs.select { |e| any { |r| r.attributes[e.to_s]&.present? } }
       # end
       tbl = Arql::Table.new { |t|
-        t.style = table_style_for_format(format)
         t.headers = attrs
         each do |e|
           t.body << e.attributes.values_at(*attrs.map(&:to_s))
