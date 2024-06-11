@@ -25,7 +25,7 @@ module Arql
     def self.method_missing(method_name, *args, &block)
       if method_name.to_s =~ /^(.+)_like$/
         attr_name = $1.to_sym
-        return super unless respond_to?(attr_name)
+        return super unless has_attribute?(attr_name)
         send(:like, $1 => args.first)
       else
         super
