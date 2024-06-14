@@ -26,4 +26,14 @@ ActiveRecord::Relation.class_eval do
   def dump(filename, batch_size=500)
     records.dump(filename, batch_size)
   end
+
+  def method_missing(method_name, *args, &block)
+    if method_name.to_s =~ /^(.+)_like$/
+      attr_name = $1.to_sym
+      return super unless model.has_attribute?(attr_name)
+      send(:like, $1 => args.first)
+    else
+      super
+    end
+  end
 end
