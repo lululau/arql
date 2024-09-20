@@ -38,6 +38,26 @@ class Array
           t.body << e.attributes.values_at(*attrs.map(&:to_s))
         end
       }
+    elsif (attrs.present? || options.present? && options[:except]) && present? && first.is_a?(Hash)
+      column_names = first.keys
+      attrs = attrs.flat_map { |e| e.is_a?(Regexp) ? column_names.grep(e) : e }.uniq
+      if options.present? && options[:except]
+        attrs = column_names if attrs.empty?
+        if options[:except].is_a?(Regexp)
+          attrs.reject! { |e| e =~ options[:except] }
+        else
+          attrs -= [options[:except]].flatten
+        end
+      end
+      # if options[:compact]
+      #   attrs = attrs.select { |e| any { |r| r.attributes[e.to_s]&.present? } }
+      # end
+      tbl = Arql::Table.new { |t|
+        t.headers = attrs
+        each do |e|
+          t.body << e.values_at(*attrs.map(&:to_s))
+        end
+      }
     else
       values = v(**options)
       tbl = Arql::Table.new { |t|
