@@ -79,10 +79,14 @@ module Arql
 
       order_column = @options[:order_column]
       if order_column
-        Thread.new do
-          @models.each do |model|
-            model_class = model[:model]
-            model_class.implicit_order_column = order_column if model_class.column_names.include?(order_column)
+        @models.each do |model|
+          model_class = model[:model]
+          model_class.define_singleton_method(:implicit_order_column) do
+            if column_names.include?(order_column)
+              order_column
+            else
+              nil
+            end
           end
         end
       end
