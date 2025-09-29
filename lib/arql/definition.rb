@@ -158,6 +158,7 @@ module Arql
         end
         self.table_name = table_name
         self.inheritance_column = nil
+        self.ignored_columns = options[:ignored_columns] if options[:ignored_columns].present?
         ActiveRecord.default_timezone = :local
         if options[:created_at].present?
           define_singleton_method :timestamp_attributes_for_create do

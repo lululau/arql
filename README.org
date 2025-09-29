@@ -225,6 +225,7 @@
         representing the constant alias (Arql) created for the model By default, aliases are also automatically created for
         the generated model class according to certain rules, and if an alias is specified here, the user-provided value
         will be used as the alias)
+    12. =ignored_columns= : An array of column names to be ignored when generating the model, default is an empty array
 
     =model_names= Examples of configuration items:
 
