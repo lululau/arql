@@ -1,115 +1,275 @@
-# rename_columns Configuration Feature
+# rename_columns Implementation Plan
 
-## Problem
+> **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
-Some database tables have columns whose names conflict with ActiveRecord/ActiveModel built-in methods (e.g., `model_name`, `connection`, `type`). This causes `ActiveRecord::DangerousAttributeError` when arql tries to generate model classes for these tables. The existing `ignored_columns` config can suppress the error, but at the cost of losing all access to the column.
+**Goal:** Add `rename_columns` config option that creates AR-level attribute aliases for columns with conflicting names (e.g., `model_name`).
 
-## Solution
+**Architecture:** In `lib/arql/definition.rb`, add `rename_columns_mapping` accessor, modify `make_model_class` to merge renamed columns into `ignored_columns` and call `alias_attribute`, and add `validate_rename_columns!` for three-layer conflict detection at startup.
 
-Add a `rename_columns` configuration option that creates AR-level attribute aliases. The original column name is automatically added to `ignored_columns` to prevent conflicts, and a new accessible name is created via Rails' built-in `alias_attribute`.
+**Tech Stack:** Ruby, ActiveRecord `alias_attribute`, `ignored_columns`, `ActiveRecord::AttributeMethods.dangerous_attribute_methods`
 
-## Configuration Format
+---
 
-```yaml
-development:
-  adapter: mysql2
-  host: localhost
-  database: myapp
+### Task 1: Add `rename_columns_mapping` accessor method
+
+**Files:**
+- Modify: `lib/arql/definition.rb:95-97` (after `model_names_mapping`)
+
+**Step 1: Add the method**
+
+After line 97 (`end` of `model_names_mapping`), add:
+
+```ruby
+    def rename_columns_mapping
+      @rename_columns_mapping ||= @options[:rename_columns] || {}
+    end
+```
+
+This follows the exact same pattern as `model_names_mapping` on line 95.
+
+**Step 2: Verify syntax**
+
+Run: `ruby -c lib/arql/definition.rb`
+Expected: `Syntax OK`
+
+**Step 3: Commit**
+
+```bash
+git add lib/arql/definition.rb
+git commit -m "feat: add rename_columns_mapping accessor"
+```
+
+---
+
+### Task 2: Modify `make_model_class` to handle column renaming
+
+**Files:**
+- Modify: `lib/arql/definition.rb:150-175` (the `make_model_class` method)
+
+**Step 1: Implement the rename logic inside the Class.new block**
+
+Replace lines 150-175 with:
+
+```ruby
+    def make_model_class(table_name, primary_keys)
+      options = @options
+      rename_columns = rename_columns_mapping
+      Class.new(@base_model) do
+        include Arql::Extension
+        if primary_keys.is_a?(Array) && primary_keys.size > 1
+          self.primary_keys = primary_keys
+        else
+          self.primary_key = primary_keys&.first
+        end
+        self.table_name = table_name
+        self.inheritance_column = nil
+
+        # Merge renamed column original names into ignored_columns
+        ignored = Array(options[:ignored_columns])
+        rename_columns.each do |old_name, new_name|
+          ignored << old_name.to_s
+        end
+        self.ignored_columns = ignored.uniq if ignored.present?
+
+        ActiveRecord.default_timezone = :local
+        if options[:created_at].present?
+          define_singleton_method :timestamp_attributes_for_create do
+            options[:created_at]
+          end
+        end
+
+        if options[:updated_at].present?
+          define_singleton_method :timestamp_attributes_for_update do
+            options[:updated_at]
+          end
+        end
+
+        # Create alias attributes for renamed columns
+        rename_columns.each do |old_name, new_name|
+          alias_attribute new_name.to_sym, old_name.to_sym
+        end
+      end
+    end
+```
+
+Key changes from the original:
+1. `ignored_columns` now merges both `options[:ignored_columns]` and all `rename_columns` original names
+2. `alias_attribute` is called for each rename mapping inside the `Class.new` block
+
+**Step 2: Verify syntax**
+
+Run: `ruby -c lib/arql/definition.rb`
+Expected: `Syntax OK`
+
+**Step 3: Commit**
+
+```bash
+git add lib/arql/definition.rb
+git commit -m "feat: integrate rename_columns into make_model_class with ignored_columns merge and alias_attribute"
+```
+
+---
+
+### Task 3: Add `validate_rename_columns!` with three-layer conflict detection
+
+**Files:**
+- Modify: `lib/arql/definition.rb` (add new method after `rename_columns_mapping`)
+
+**Step 1: Add the validation method**
+
+After the `rename_columns_mapping` method, add:
+
+```ruby
+    ARQL_EXTENSION_INSTANCE_METHODS = %i[v t vd to_insert_sql to_upsert_sql dump write_csv write_excel].freeze
+
+    def validate_rename_columns!(table_name, model_class)
+      rename_columns = rename_columns_mapping
+      table_column_names = model_class.column_names.map(&:to_s)
+      ar_reserved = ActiveRecord::AttributeMethods.dangerous_attribute_methods
+
+      rename_columns.each do |old_name, new_name|
+        old_name = old_name.to_s
+        new_name = new_name.to_s
+
+        # Check: original column must exist in the table
+        unless table_column_names.include?(old_name)
+          warn "rename_columns: column '#{old_name}' not found in table '#{table_name}', skipping"
+          next
+        end
+
+        # Check: new name must not conflict with existing column names
+        if table_column_names.include?(new_name) && new_name != old_name
+          warn "rename_columns: new name '#{new_name}' conflicts with existing column in table '#{table_name}', skipping rename of '#{old_name}'"
+          next
+        end
+
+        # Check: new name must not be an ActiveRecord reserved attribute method
+        if ar_reserved.include?(new_name)
+          raise ActiveRecord::DangerousAttributeError,
+            "rename_columns: new name '#{new_name}' is a reserved ActiveRecord method, cannot use as column alias"
+        end
+
+        # Check: new name must not conflict with arql Extension instance methods
+        if ARQL_EXTENSION_INSTANCE_METHODS.include?(new_name.to_sym)
+          warn "rename_columns: new name '#{new_name}' conflicts with an arql method in table '#{table_name}', skipping rename of '#{old_name}'"
+          next
+        end
+      end
+    end
+```
+
+**Step 2: Verify syntax**
+
+Run: `ruby -c lib/arql/definition.rb`
+Expected: `Syntax OK`
+
+**Step 3: Commit**
+
+```bash
+git add lib/arql/definition.rb
+git commit -m "feat: add validate_rename_columns! with three-layer conflict detection"
+```
+
+---
+
+### Task 4: Wire up validation in `define_model_from_table` and `redefine`
+
+**Files:**
+- Modify: `lib/arql/definition.rb:99-114` (`define_model_from_table`)
+- Modify: `lib/arql/definition.rb:39-53` (`redefine`)
+
+**Step 1: Add validation call in `define_model_from_table`**
+
+In `define_model_from_table`, after line 113 (the return hash), add the validation call. The method should become:
+
+```ruby
+    def define_model_from_table(table_name, primary_keys)
+      model_name = make_model_name(table_name)
+      return unless model_name
+
+      model_class = make_model_class(table_name, primary_keys)
+      validate_rename_columns!(table_name, model_class)
+      @namespace_module.const_set(model_name, model_class)
+      abbr_name = make_model_abbr_name(model_name, table_name)
+      @namespace_module.const_set(abbr_name, model_class)
+
+      { model: model_class, abbr: "#@namespace::#{abbr_name}", table: table_name }
+    end
+```
+
+Only change: added `validate_rename_columns!(table_name, model_class)` after `make_model_class` and before `const_set`.
+
+**Step 2: Verify `redefine` already works**
+
+The `redefine` method (line 39) calls `define_model_from_table`, so it automatically picks up the validation. No changes needed to `redefine`.
+
+**Step 3: Verify syntax**
+
+Run: `ruby -c lib/arql/definition.rb`
+Expected: `Syntax OK`
+
+**Step 4: Commit**
+
+```bash
+git add lib/arql/definition.rb
+git commit -m "feat: wire up validate_rename_columns! in define_model_from_table"
+```
+
+---
+
+### Task 5: Manual verification
+
+**Files:** None (testing only)
+
+**Step 1: Verify with a real database**
+
+Create a test SQLite database with a `model_name` column, configure `rename_columns`, and verify:
+
+```bash
+# Create test DB
+sqlite3 /tmp/arql_test.db "CREATE TABLE test_table (id INTEGER PRIMARY KEY, model_name TEXT, name TEXT); INSERT INTO test_table VALUES (1, 'TestModel', 'Alice');"
+
+# Create config
+cat > /tmp/arql_test.yml << 'EOF'
+default:
+  adapter: sqlite3
+  database: /tmp/arql_test.db
   rename_columns:
     model_name: record_model_name
-    type: biz_type
+EOF
+
+# Run arql
+arql -c /tmp/arql_test.yml -E 'puts TestTable.last.record_model_name'
 ```
 
-Key = original DB column name, Value = new alias name exposed on the model.
+Expected output: `TestModel`
 
-## Implementation Approach
+**Step 2: Verify query aliasing**
 
-**Chosen: `alias_attribute` + auto `ignored_columns`** (over manual `read_attribute`/`write_attribute` or column name hacking).
-
-Rationale:
-- Rails native mechanism, well-tested
-- Query aliasing works automatically: `where(record_model_name: 'xxx')` translates to `WHERE model_name = 'xxx'`
-- Minimal code changes
-
-## Architecture
-
-### Single file change: `lib/arql/definition.rb`
-
-1. **New method: `rename_columns_mapping`**
-   - Returns `options[:rename_columns] || {}`
-   - Follows the pattern of existing `model_names_mapping` (line 95)
-
-2. **New method: `validate_rename_columns!`**
-   - Called per-table after model class creation
-   - Three-layer conflict detection (see below)
-
-3. **Modified method: `make_model_class`** (line 150)
-   - Inside the `Class.new` block, after `ignored_columns` handling (line 161):
-     - Merge renamed original column names into `ignored_columns`
-     - Call `alias_attribute` for each rename mapping that belongs to this table
-
-4. **Modified method: `define_model_from_table`** (line 99)
-   - After model class creation, call `validate_rename_columns!`
-
-### Data Flow
-
-```
-YAML config (rename_columns: { model_name: record_model_name })
-  → options hash passed to Definition#initialize
-  → Definition#make_model_class reads options[:rename_columns]
-  → filters mappings for current table's columns
-  → original names added to ignored_columns
-  → alias_attribute called for each mapping
-  → validate_rename_columns! checks for conflicts
+```bash
+arql -c /tmp/arql_test.yml -S -E 'puts TestTable.where(record_model_name: "TestModel").to_sql'
 ```
 
-### Conflict Detection (at startup)
+Expected output contains: `WHERE "test_table"."model_name" = 'TestModel'`
 
-| Check                 | Rule                                                                 | On failure          |
-| --------------------- | -------------------------------------------------------------------- | ------------------- |
-| Column name conflict  | New name must not match any other existing column in the same table   | `warn`, skip mapping |
-| AR reserved name      | New name must not be in `ActiveRecord::AttributeMethods.dangerous_attribute_methods` | `raise`, abort startup |
-| arql method name      | New name must not be an arql Extension instance method                | `warn`, skip mapping |
+**Step 3: Verify conflict detection**
 
-arql Extension instance methods to check: `v`, `t`, `vd`, `to_insert_sql`, `to_upsert_sql`, `to_create_sql`, `dump`, `write_csv`, `write_excel`.
+```bash
+cat > /tmp/arql_test_bad.yml << 'EOF'
+default:
+  adapter: sqlite3
+  database: /tmp/arql_test.db
+  rename_columns:
+    model_name: save
+EOF
 
-**Why `raise` for AR reserved names**: These cause unpredictable behavior and silent data corruption. Column name and arql method conflicts are less severe and can be skipped gracefully.
-
-## Edge Cases
-
-| Scenario                                                        | Behavior                   |
-| --------------------------------------------------------------- | -------------------------- |
-| Original column name in `rename_columns` doesn't exist in table | `warn`, skip mapping        |
-| Same original column renamed twice in config (config error)     | Last one wins, `warn`      |
-| `rename_columns` and `ignored_columns` specify the same column  | Merged and deduplicated    |
-| `rename_columns` shared across environments via YAML anchor     | Works, validated per-env   |
-| `redefine` Pry command used                                     | Works (re-runs full flow)  |
-
-## What's NOT Affected
-
-- **DB layer**: No database changes, pure AR mapping
-- **`t`/`v`/`vd` output**: Displays original column names (correct, since DB is unchanged)
-- **SQL logs**: `where(record_model_name: 'xxx')` shows `WHERE model_name = 'xxx'` in logs
-- **`redefine` command**: Automatically supported (calls `define_model_from_table`)
-- **Existing `ignored_columns`**: Fully compatible, merged at runtime
-
-## Example Usage
-
-Before (fails):
-```
-ARQL@dev(main) [1] ❯ AGH.last
-ActiveRecord::DangerousAttributeError: model_name is defined by Active Record
+arql -c /tmp/arql_test_bad.yml -E 'puts "hello"'
 ```
 
-After (with config):
-```yaml
-rename_columns:
-  model_name: record_model_name
-```
+Expected: `ActiveRecord::DangerousAttributeError` with message about `save` being reserved.
 
-```
-ARQL@dev(main) [1] ❯ AGH.last.record_model_name
-=> "SomeModel"
-ARQL@dev(main) [2] ❯ AGH.where(record_model_name: "SomeModel").count
-=> 5
+**Step 4: Cleanup**
+
+```bash
+rm /tmp/arql_test.db /tmp/arql_test.yml /tmp/arql_test_bad.yml
 ```
