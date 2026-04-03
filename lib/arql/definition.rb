@@ -2,7 +2,6 @@ require 'arql/concerns'
 require 'arql/vd'
 
 module Arql
-
   class BaseModel < ::ActiveRecord::Base
     self.abstract_class = true
 
@@ -24,9 +23,10 @@ module Arql
 
     def self.method_missing(method_name, *args, &block)
       if method_name.to_s =~ /^(.+)_like$/
-        attr_name = $1.to_sym
+        attr_name = ::Regexp.last_match(1).to_sym
         return super unless has_attribute?(attr_name)
-        send(:like, $1 => args.first)
+
+        send(:like, ::Regexp.last_match(1) => args.first)
       else
         super
       end
@@ -34,7 +34,7 @@ module Arql
   end
 
   class Definition
-    attr :connection, :ssh_proxy, :options, :models, :namespace_module, :namespace
+    attr_reader :connection, :ssh_proxy, :options, :models, :namespace_module, :namespace
 
     def redefine
       @models.each do |model|
@@ -78,16 +78,14 @@ module Arql
       end
 
       order_column = @options[:order_column]
-      if order_column
-        @models.each do |model|
-          model_class = model[:model]
-          model_class.define_singleton_method(:implicit_order_column) do
-            if column_names.include?(order_column)
-              order_column
-            else
-              nil
-            end
-          end
+      return unless order_column
+
+      @models.each do |model|
+        model_class = model[:model]
+        model_class.define_singleton_method(:implicit_order_column) do
+          return unless column_names.include?(order_column)
+
+          order_column
         end
       end
     end
@@ -96,11 +94,46 @@ module Arql
       @model_names_mapping ||= @options[:model_names] || {}
     end
 
+    def rename_columns_mapping
+      @rename_columns_mapping ||= @options[:rename_columns] || {}
+    end
+
+    ARQL_EXTENSION_INSTANCE_METHODS = %i[v t vd to_insert_sql to_upsert_sql dump write_csv write_excel].freeze
+
+    def validate_rename_columns!(table_name, _model_class)
+      ar_reserved = ActiveRecord::AttributeMethods.dangerous_attribute_methods
+      raw_column_names = @connection.columns(table_name).map(&:name).map(&:to_s)
+
+      rename_columns_mapping.each do |old_name, new_name|
+        old_name = old_name.to_s
+        new_name = new_name.to_s
+
+        next unless raw_column_names.include?(old_name)
+
+        if raw_column_names.include?(new_name) && new_name != old_name
+          warn "rename_columns: new name '#{new_name}' already exists in table '#{table_name}', skipping rename of '#{old_name}'"
+          next
+        end
+
+        if ar_reserved.include?(new_name)
+          raise ActiveRecord::DangerousAttributeError,
+                "rename_columns: new name '#{new_name}' is a reserved ActiveRecord method"
+        end
+
+        if ARQL_EXTENSION_INSTANCE_METHODS.include?(new_name.to_sym)
+          warn "rename_columns: new name '#{new_name}' conflicts with an arql method in table '#{table_name}', skipping rename of '#{old_name}'"
+          next
+        end
+      end
+    end
+
     def define_model_from_table(table_name, primary_keys)
       model_name = make_model_name(table_name)
       return unless model_name
 
       model_class = make_model_class(table_name, primary_keys)
+      validate_rename_columns!(table_name, model_class)
+      remove_renamed_column_accessors!(model_class) if rename_columns_mapping.present?
       @namespace_module.const_set(model_name, model_class)
       abbr_name = make_model_abbr_name(model_name, table_name)
       @namespace_module.const_set(abbr_name, model_class)
@@ -110,7 +143,7 @@ module Arql
       #   Object.const_set(abbr_name, model_class)
       # end
 
-      { model: model_class, abbr: "#@namespace::#{abbr_name}", table: table_name }
+      { model: model_class, abbr: "#{@namespace}::#{abbr_name}", table: table_name }
     end
 
     def make_model_abbr_name(model_name, table_name)
@@ -149,6 +182,8 @@ module Arql
 
     def make_model_class(table_name, primary_keys)
       options = @options
+      rename_columns = rename_columns_mapping
+      renamed_old_names = rename_columns.keys.map(&:to_s)
       Class.new(@base_model) do
         include Arql::Extension
         if primary_keys.is_a?(Array) && primary_keys.size > 1
@@ -160,6 +195,16 @@ module Arql
         self.inheritance_column = nil
         self.ignored_columns = options[:ignored_columns] if options[:ignored_columns].present?
         ActiveRecord.default_timezone = :local
+
+        # Prevent DangerousAttributeError for renamed columns by allowing
+        # their original names to be redefined as attribute accessors
+        define_singleton_method(:instance_method_already_implemented?) do |method_name|
+          name = method_name.to_s.sub(/[=?\z]/, '')
+          return false if renamed_old_names.include?(name)
+
+          super(method_name)
+        end
+
         if options[:created_at].present?
           define_singleton_method :timestamp_attributes_for_create do
             options[:created_at]
@@ -171,6 +216,25 @@ module Arql
             options[:updated_at]
           end
         end
+
+        rename_columns.each do |old_name, new_name|
+          new_sym = new_name.to_sym
+          define_method(new_sym) { read_attribute(old_name.to_s) }
+          define_method(:"#{new_sym}=") { |value| write_attribute(old_name.to_s, value) }
+          define_method(:"#{new_sym}?") { !!read_attribute(old_name.to_s) }
+        end
+        self.attribute_aliases = rename_columns.transform_keys(&:to_sym).invert if rename_columns.present?
+      end
+    end
+
+    def remove_renamed_column_accessors!(model_class)
+      model_class.define_attribute_methods
+      mod = model_class.send(:generated_attribute_methods)
+      rename_columns_mapping.keys.each do |old_name|
+        old_name = old_name.to_s
+        [old_name.to_sym, :"#{old_name}=", :"#{old_name}?"].each do |m|
+          mod.send(:remove_method, m) if mod.method_defined?(m)
+        end
       end
     end
 
@@ -179,13 +243,14 @@ module Arql
       Arql::SSHProxy.new(
         ssh_config.slice(:host, :user, :port, :password)
           .merge(forward_host: @options[:host],
-            forward_port: @options[:port],
-            local_port: ssh_config[:local_port]))
+                 forward_port: @options[:port],
+                 local_port: ssh_config[:local_port])
+      )
     end
 
     def get_connection_options
       connect_conf = @options.slice(:adapter, :host, :username, :password,
-                                :database, :encoding, :pool, :port, :socket)
+                                    :database, :encoding, :pool, :port, :socket)
       connect_conf.merge!(@ssh_proxy.database_host_port) if @ssh_proxy
       connect_conf
     end
@@ -216,8 +281,7 @@ module Arql
     def create_namespace_module(namespace)
       definition = self
 
-      Object.const_set(namespace, Module.new {
-
+      Object.const_set(namespace, Module.new do
         define_singleton_method(:config) do
           definition.options
         end
@@ -245,7 +309,7 @@ module Arql
         define_singleton_method(:dump) do |filename, no_create_db = false|
           Arql::Mysqldump.new(definition.options).dump_database(filename, no_create_db)
         end
-      })
+      end)
     end
   end
 end
