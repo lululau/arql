@@ -100,17 +100,18 @@ module Arql
 
     ARQL_EXTENSION_INSTANCE_METHODS = %i[v t vd to_insert_sql to_upsert_sql dump write_csv write_excel].freeze
 
-    def validate_rename_columns!(table_name, _model_class)
+    def validate_rename_columns!(table_name, model_class)
+      table_column_names_set = model_class.column_names.to_set
+      return unless table_column_names_set.intersect?(rename_columns_mapping.keys.map(&:to_s).to_set)
+
       ar_reserved = ActiveRecord::AttributeMethods.dangerous_attribute_methods
-      raw_column_names = @connection.columns(table_name).map(&:name).map(&:to_s)
 
       rename_columns_mapping.each do |old_name, new_name|
-        old_name = old_name.to_s
+        next unless table_column_names_set.include?(old_name.to_s)
+
         new_name = new_name.to_s
 
-        next unless raw_column_names.include?(old_name)
-
-        if raw_column_names.include?(new_name) && new_name != old_name
+        if table_column_names_set.include?(new_name) && new_name != old_name.to_s
           warn "rename_columns: new name '#{new_name}' already exists in table '#{table_name}', skipping rename of '#{old_name}'"
           next
         end
@@ -132,8 +133,20 @@ module Arql
       return unless model_name
 
       model_class = make_model_class(table_name, primary_keys)
-      validate_rename_columns!(table_name, model_class)
-      remove_renamed_column_accessors!(model_class) if rename_columns_mapping.present?
+      if rename_columns_mapping.present?
+        validate_rename_columns!(table_name, model_class)
+        relevant_old_names = rename_columns_mapping.keys.select { |n| model_class.column_names.include?(n.to_s) }
+        if relevant_old_names.any?
+          model_class.define_attribute_methods
+          mod = model_class.send(:generated_attribute_methods)
+          relevant_old_names.each do |old_name|
+            old_name = old_name.to_s
+            [old_name.to_sym, :"#{old_name}=", :"#{old_name}?"].each do |m|
+              mod.send(:remove_method, m) if mod.method_defined?(m)
+            end
+          end
+        end
+      end
       @namespace_module.const_set(model_name, model_class)
       abbr_name = make_model_abbr_name(model_name, table_name)
       @namespace_module.const_set(abbr_name, model_class)
@@ -196,13 +209,13 @@ module Arql
         self.ignored_columns = options[:ignored_columns] if options[:ignored_columns].present?
         ActiveRecord.default_timezone = :local
 
-        # Prevent DangerousAttributeError for renamed columns by allowing
-        # their original names to be redefined as attribute accessors
-        define_singleton_method(:instance_method_already_implemented?) do |method_name|
-          name = method_name.to_s.sub(/[=?\z]/, '')
-          return false if renamed_old_names.include?(name)
+        if renamed_old_names.any?
+          define_singleton_method(:instance_method_already_implemented?) do |method_name|
+            name = method_name.to_s.sub(/[=?\z]/, '')
+            return false if renamed_old_names.include?(name)
 
-          super(method_name)
+            super(method_name)
+          end
         end
 
         if options[:created_at].present?
@@ -217,23 +230,24 @@ module Arql
           end
         end
 
-        rename_columns.each do |old_name, new_name|
-          new_sym = new_name.to_sym
-          define_method(new_sym) { read_attribute(old_name.to_s) }
-          define_method(:"#{new_sym}=") { |value| write_attribute(old_name.to_s, value) }
-          define_method(:"#{new_sym}?") { !!read_attribute(old_name.to_s) }
-        end
-        self.attribute_aliases = rename_columns.transform_keys(&:to_sym).invert if rename_columns.present?
-      end
-    end
+        if rename_columns.present?
+          rename_columns.each do |old_name, new_name|
+            new_sym = new_name.to_sym
+            define_method(new_sym) { read_attribute(old_name.to_s) }
+            define_method(:"#{new_sym}=") { |value| write_attribute(old_name.to_s, value) }
+            define_method(:"#{new_sym}?") { !!read_attribute(old_name.to_s) }
+          end
+          self.attribute_aliases = rename_columns.transform_keys(&:to_sym).invert
 
-    def remove_renamed_column_accessors!(model_class)
-      model_class.define_attribute_methods
-      mod = model_class.send(:generated_attribute_methods)
-      rename_columns_mapping.keys.each do |old_name|
-        old_name = old_name.to_s
-        [old_name.to_sym, :"#{old_name}=", :"#{old_name}?"].each do |m|
-          mod.send(:remove_method, m) if mod.method_defined?(m)
+          original_inspect = instance_method(:inspect)
+          rename_columns_for_inspect = rename_columns.dup
+          define_method(:inspect) do
+            result = original_inspect.bind(self).call
+            rename_columns_for_inspect.each do |old_name, new_name|
+              result = result.sub(/\b#{Regexp.escape(old_name.to_s)}(?=:)/, new_name.to_s)
+            end
+            result
+          end
         end
       end
     end
