@@ -239,14 +239,28 @@ module Arql
           end
           self.attribute_aliases = rename_columns.transform_keys(&:to_sym).invert
 
-          original_inspect = instance_method(:inspect)
-          rename_columns_for_inspect = rename_columns.dup
-          define_method(:inspect) do
-            result = original_inspect.bind(self).call
-            rename_columns_for_inspect.each do |old_name, new_name|
-              result = result.sub(/\b#{Regexp.escape(old_name.to_s)}(?=:)/, new_name.to_s)
+          rename_map = rename_columns.transform_keys(&:to_s)
+          define_method(:pretty_print) do |pp|
+            pp.object_address_group(self) do
+              if defined?(@attributes) && @attributes
+                attr_names = self.class.attribute_names.select { |name| _has_attribute?(name) }
+                pp.seplist(attr_names, proc { pp.text ',' }) do |attr_name|
+                  display_name = rename_map.fetch(attr_name, attr_name)
+                  pp.breakable ' '
+                  pp.group(1) do
+                    pp.text display_name
+                    pp.text ':'
+                    pp.breakable
+                    value = _read_attribute(attr_name)
+                    value = inspection_filter.filter_param(attr_name, value) unless value.nil?
+                    pp.pp value
+                  end
+                end
+              else
+                pp.breakable ' '
+                pp.text 'not initialized'
+              end
             end
-            result
           end
         end
       end
