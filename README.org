@@ -226,6 +226,41 @@
         the generated model class according to certain rules, and if an alias is specified here, the user-provided value
         will be used as the alias)
     12. =ignored_columns= : An array of column names to be ignored when generating the model, default is an empty array
+    13. =rename_columns= : A hash mapping original column names to new names. When a column name conflicts with an ActiveRecord
+        built-in method (e.g., =model_name=, =valid=, =connection=, =type=), it causes =ActiveRecord::DangerousAttributeError=.
+        Use this option to rename conflicting columns. The original column name will be hidden and only the new name will be
+        accessible. The new name also works in queries (e.g., =where(new_name: 'value')= translates to =WHERE old_name = 'value'=).
+        Arql validates that the new name does not conflict with existing columns, ActiveRecord reserved methods, or arql
+        built-in methods. If the new name is an ActiveRecord reserved method, arql will raise an error at startup.
+
+    Example of =rename_columns= configuration:
+
+    #+BEGIN_SRC yaml
+        development:
+          adapter: mysql2
+          host: localhost
+          database: myapp
+          rename_columns:
+            model_name: record_model_name
+            valid: is_valid
+            type: biz_type
+    #+END_SRC
+
+    With the above configuration:
+
+    #+begin_example
+    ARQL@dev(main) [1] ❯ Attachment.last
+    => #<I::Attachment:0xabc id: 1, record_model_name: "SomeModel", is_valid: true, biz_type: "image">
+
+    ARQL@dev(main) [2] ❯ Attachment.where(record_model_name: "SomeModel").to_sql
+    => "SELECT `attachments`.* FROM `attachments` WHERE `attachments`.`model_name` = 'SomeModel'"
+
+    ARQL@dev(main) [3] ❯ Attachment.last.is_valid
+    => true
+
+    ARQL@dev(main) [4] ❯ Attachment.last.model_name
+    => NoMethodError (original name is hidden)
+    #+end_example
 
     =model_names= Examples of configuration items:
 

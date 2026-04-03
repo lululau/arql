@@ -199,6 +199,40 @@
         建的常量别名（Arql 默认也会按照一定的规则自动为生成的模型类创建别名，如果这里指定了别名，将会使用用户提供的值作
         为别名）
     12. =ignored_columns=: 一个列名的数组，在生成模型时将忽略这些列，默认为空数组
+    13. =rename_columns=: 一个 Hash，用于将数据库列名映射为新的名称。当列名与 ActiveRecord 内置方法冲突时（例如 =model_name=、
+        =valid=、=connection=、=type= 等），会导致 =ActiveRecord::DangerousAttributeError= 错误。使用此配置项可以重命名这些冲突列。
+        重命名后，原始列名将被隐藏，只能通过新名称访问。新名称同样可用于查询（例如 =where(new_name: 'value')=
+        会自动翻译为 =WHERE old_name = 'value'=）。arql 会在启动时校验新名称，确保其不与已有列名、ActiveRecord 保留方法名
+        或 arql 内置方法名冲突。如果新名称是 ActiveRecord 保留方法名，arql 将在启动时报错。
+
+    =rename_columns= 配置项示例:
+
+    #+BEGIN_SRC yaml
+        development:
+          adapter: mysql2
+          host: localhost
+          database: myapp
+          rename_columns:
+            model_name: record_model_name
+            valid: is_valid
+            type: biz_type
+    #+END_SRC
+
+    使用以上配置后:
+
+    #+begin_example
+    ARQL@dev(main) [1] ❯ Attachment.last
+    => #<I::Attachment:0xabc id: 1, record_model_name: "SomeModel", is_valid: true, biz_type: "image">
+
+    ARQL@dev(main) [2] ❯ Attachment.where(record_model_name: "SomeModel").to_sql
+    => "SELECT `attachments`.* FROM `attachments` WHERE `attachments`.`model_name` = 'SomeModel'"
+
+    ARQL@dev(main) [3] ❯ Attachment.last.is_valid
+    => true
+
+    ARQL@dev(main) [4] ❯ Attachment.last.model_name
+    => NoMethodError (原始名称已被隐藏)
+    #+end_example
 
     =model_names= 配置项的例子:
     
